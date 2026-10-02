@@ -19,26 +19,26 @@ To change projects, update `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `js/
 
 Customer accounts use Supabase Auth email/password sign-up and sign-in. Email verification is enabled in the current project settings. The Supabase client persists the session; the account page reads the display name from Auth user metadata. No customer profile table or custom password storage is used, and customer sign-up does not add anyone to `admin_users`. Guest checkout remains available without signing in.
 
-In Supabase **Authentication → URL Configuration**, set the Site URL for the deployed site and add these Redirect URLs (adjust the deployed host/path as needed):
+In Supabase **Authentication → URL Configuration**, set the Site URL to `https://baggedcom.vercel.app` and add these Redirect URLs:
 
 ```text
 http://localhost:8000/**
-https://YOUR_DEPLOYED_HOST/**
+https://baggedcom.vercel.app/**
 ```
 
-The local URL is used by email verification and password recovery. Add the production URL before deploying.
+The Vercel deployment does not need environment variables for these values because the public project URL and publishable key are shipped in `js/config.js`. Never add a Supabase secret/service-role key to Vercel client-side variables or frontend files.
 
 ### Enable Google sign-in
 
-Google OAuth is currently disabled for this project. To enable it:
+For a new Supabase project, configure Google OAuth as follows. The current Bagged production flow has been verified to reach Google's sign-in page.
 
 1. In Google Cloud Console, configure the OAuth consent screen and create an OAuth client ID of type **Web application**.
-2. Add the local/deployed site origins to **Authorized JavaScript origins**, for example `http://localhost:8000` and `https://YOUR_DEPLOYED_HOST`.
+2. Add the local/deployed site origins to **Authorized JavaScript origins**, including `http://localhost:8000` and `https://baggedcom.vercel.app`.
 3. Set the Google client's **Authorized redirect URI** to `https://sqaiwhbzsczamdbpowig.supabase.co/auth/v1/callback`.
 4. In Supabase **Authentication → Sign In / Providers → Google**, enable Google and enter the Google client ID and client secret. Keep the secret in the Supabase dashboard only; never put it in `js/config.js` or other frontend files.
-5. Confirm the Bagged site URLs are in Supabase **Authentication → URL Configuration**. The app sends users back to `/account.html` after Google sign-in.
+5. Confirm `https://baggedcom.vercel.app/**` and `http://localhost:8000/**` are in Supabase **Authentication → URL Configuration**. The app sends users back to the current site's `/account.html` after Google sign-in.
 
-The account page checks whether Google is enabled before starting OAuth and shows a readable message if it is not. Successful Google sign-in cannot be tested until the provider is configured.
+The account page checks whether Google is enabled and shows a readable message if it is not. Production OAuth was confirmed to redirect to Google's sign-in page with `https://baggedcom.vercel.app/account.html` as the return URL; completing consent requires the customer's Google account.
 
 ## Database migration
 

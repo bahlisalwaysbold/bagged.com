@@ -4,15 +4,17 @@ let accountView=new URLSearchParams(location.search).get('mode')==='update-passw
 let accountNotice='';
 let accountNoticeType='status';
 let accountReady=false;
+let accountSessionPending=true;
+const accountSessionTimeoutMs=8000;
 
 function accountRedirectUrl(){return new URL('account.html',location.href).href.split(/[?#]/)[0];}
 function customerName(user){return user.user_metadata?.full_name||user.user_metadata?.name||'Bagged customer';}
 function showAccountNotice(message,type='status'){accountNotice=message;accountNoticeType=type;renderAccount();}
 
 function renderAccount(){
-  if(!supabaseClient){
-    accountRoot.innerHTML=`<div class="auth-panel"><p class="form-error" role="alert">${escapeHtml(window.supabaseClientError||'The sign-in service could not load. Reload and try again.')}</p><button class="btn btn-secondary" onclick="location.reload()">Try again</button></div>`;
-    return;
+  if(!supabaseClient&&!accountNotice){
+    accountNotice=window.supabaseClientError||'The sign-in service could not load. Check your connection and retry.';
+    accountNoticeType='alert';
   }
   if(accountView==='update-password'&&!accountUser){
     accountView='forgot';
@@ -26,7 +28,7 @@ function renderAccount(){
     return;
   }
   if(accountView==='update-password'){
-    accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">PASSWORD RESET</span><h2>Choose a new password.</h2>${notice}<form id="update-password-form"><label>New password<input required type="password" name="password" autocomplete="new-password" minlength="8"></label><label>Confirm new password<input required type="password" name="confirmation" autocomplete="new-password" minlength="8"></label><button class="btn btn-primary full" type="submit">Save new password</button></form></section>`;
+    accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">PASSWORD RESET</span><h2>Choose a new password.</h2>${accountSessionPending?'<p class="catalog-message" role="status">Verifying your reset link…</p>':''}${notice}<form id="update-password-form"><label>New password<input required type="password" name="password" autocomplete="new-password" minlength="8"></label><label>Confirm new password<input required type="password" name="confirmation" autocomplete="new-password" minlength="8"></label><button class="btn btn-primary full" type="submit" ${accountSessionPending||!supabaseClient?'disabled':''}>Save new password</button></form></section>`;
     document.getElementById('update-password-form').addEventListener('submit',updatePassword);
     return;
   }
@@ -66,6 +68,7 @@ function setFormBusy(form,busy,label){
 
 async function signIn(event){
   event.preventDefault();
+  if(!supabaseClient){showAccountNotice(window.supabaseClientError||'Sign-in is temporarily unavailable. Reload and try again.','alert');return;}
   const form=event.currentTarget;
   const values=new FormData(form);
   setFormBusy(form,true,'Signing in…');
@@ -81,6 +84,7 @@ async function signIn(event){
 
 async function signUp(event){
   event.preventDefault();
+  if(!supabaseClient){showAccountNotice(window.supabaseClientError||'Sign-up is temporarily unavailable. Reload and try again.','alert');return;}
   const form=event.currentTarget;
   const values=new FormData(form);
   setFormBusy(form,true,'Creating account…');
@@ -99,6 +103,7 @@ async function signUp(event){
 
 async function sendPasswordReset(event){
   event.preventDefault();
+  if(!supabaseClient){showAccountNotice(window.supabaseClientError||'Password reset is temporarily unavailable. Reload and try again.','alert');return;}
   const form=event.currentTarget;
   const email=String(new FormData(form).get('email')).trim();
   setFormBusy(form,true,'Sending link…');
@@ -111,6 +116,7 @@ async function sendPasswordReset(event){
 
 async function updatePassword(event){
   event.preventDefault();
+  if(!supabaseClient){showAccountNotice(window.supabaseClientError||'Password update is temporarily unavailable. Reload and try again.','alert');return;}
   const form=event.currentTarget;
   const values=new FormData(form);
   if(values.get('password')!==values.get('confirmation')){showAccountNotice('The passwords do not match.','alert');return;}
@@ -127,6 +133,7 @@ async function updatePassword(event){
 }
 
 async function continueWithGoogle(event){
+  if(!supabaseClient){showAccountNotice(window.supabaseClientError||'Google sign-in is temporarily unavailable. Reload and try again.','alert');return;}
   const button=event.currentTarget;
   button.disabled=true;
   button.textContent='Connecting…';
@@ -152,6 +159,7 @@ async function continueWithGoogle(event){
 }
 
 async function signOut(){
+  if(!supabaseClient){showAccountNotice(window.supabaseClientError||'Sign-out is temporarily unavailable. Reload and try again.','alert');return;}
   try{
     const {error}=await supabaseClient.auth.signOut();
     if(error)throw error;
@@ -162,9 +170,15 @@ async function signOut(){
   }catch(error){showAccountNotice(error.message||'Could not sign out. Please try again.','alert');}
 }
 
-if(!supabaseClient){renderAccount();}
-else{
-  supabaseClient.auth.onAuthStateChange((event,session)=>{
+function initializeAccount(){
+  renderAccount();
+  if(!supabaseClient){
+    accountReady=true;
+    accountSessionPending=false;
+    return;
+  }
+  try{
+    supabaseClient.auth.onAuthStateChange((event,session)=>{
     accountUser=session?.user||null;
     if(event==='PASSWORD_RECOVERY')accountView='update-password';
     if(accountReady&&event==='SIGNED_OUT'){
@@ -173,9 +187,35 @@ else{
     }
     if(accountReady)renderAccount();
   });
-  supabaseClient.auth.getSession().then(({data,error})=>{
+  }catch(error){
     accountReady=true;
-    if(error){showAccountNotice(error.message||'Could not check your session.','alert');return;}
+    accountSessionPending=false;
+    showAccountNotice(error.message||'Could not initialize your sign-in session. You can still use the sign-in form.','alert');
+  }
+
+  let timeoutId;
+  const timeout=new Promise(resolve=>{
+    timeoutId=setTimeout(()=>resolve({timedOut:true}),accountSessionTimeoutMs);
+  });
+  Promise.race([
+    Promise.resolve().then(()=>supabaseClient.auth.getSession()).then(result=>({result})),
+    timeout
+  ]).then(outcome=>{
+    accountSessionPending=false;
+    accountReady=true;
+    if(outcome.timedOut){
+      accountUser=null;
+      if(accountView==='update-password')accountView='forgot';
+      showAccountNotice('Your saved session could not be checked in time. You can still sign in; reload later to restore the session.','alert');
+      return;
+    }
+    const {data,error}=outcome.result||{};
+    if(error){
+      accountUser=null;
+      if(accountView==='update-password')accountView='forgot';
+      showAccountNotice(error.message||'Could not check your saved session. You can still sign in.','alert');
+      return;
+    }
     accountUser=data.session?.user||null;
     const hashParams=new URLSearchParams(location.hash.slice(1));
     const queryParams=new URLSearchParams(location.search);
@@ -186,5 +226,13 @@ else{
       history.replaceState(null,'',accountRedirectUrl());
     }
     renderAccount();
-  });
+  }).catch(error=>{
+    accountSessionPending=false;
+    accountReady=true;
+    accountUser=null;
+    if(accountView==='update-password')accountView='forgot';
+    showAccountNotice(error.message||'Could not check your saved session. You can still sign in.','alert');
+  }).finally(()=>clearTimeout(timeoutId));
 }
+
+initializeAccount();
