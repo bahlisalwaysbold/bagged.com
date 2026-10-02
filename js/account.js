@@ -10,6 +10,7 @@ const accountSessionTimeoutMs=8000;
 function accountRedirectUrl(){return new URL('account.html',location.href).href.split(/[?#]/)[0];}
 function customerName(user){return user.user_metadata?.full_name||user.user_metadata?.name||'Bagged customer';}
 function showAccountNotice(message,type='status'){accountNotice=message;accountNoticeType=type;renderAccount();}
+function setGoogleButtonLabel(button,label){const text=button.querySelector('[data-google-label]');if(text)text.textContent=label;}
 
 function renderAccount(){
   if(!supabaseClient&&!accountNotice){
@@ -39,12 +40,12 @@ function renderAccount(){
     return;
   }
   if(accountView==='signup'){
-    accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">CREATE AN ACCOUNT</span><h2>Join Bagged.</h2><p>Your bag stays yours. Guest checkout is always available.</p>${notice}<form id="signup-form"><label>Full name<input required name="name" autocomplete="name" maxlength="120" placeholder="Your name"></label><label>Email<input required type="email" name="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input required type="password" name="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label><button class="btn btn-primary full" type="submit">Create account</button></form><div class="auth-divider"><span>or</span></div><button class="google-button" type="button" data-google>Continue with Google</button><p class="auth-switch">Already have an account? <button class="auth-link" type="button" data-view="signin">Sign in</button></p></section>`;
+    accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">CREATE AN ACCOUNT</span><h2>Join Bagged.</h2><p>Your bag stays yours. Guest checkout is always available.</p>${notice}<form id="signup-form"><label>Full name<input required name="name" autocomplete="name" maxlength="120" placeholder="Your name"></label><label>Email<input required type="email" name="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input required type="password" name="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label><button class="btn btn-primary full" type="submit">Create account</button></form><div class="auth-divider"><span>or</span></div><button class="google-button" type="button" data-google><img src="assets/google-g.svg" alt="" aria-hidden="true"><span data-google-label>Continue with Google</span></button><p class="auth-switch">Already have an account? <button class="auth-link" type="button" data-view="signin">Sign in</button></p></section>`;
     document.getElementById('signup-form').addEventListener('submit',signUp);
     bindViewButtons();
     return;
   }
-  accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">WELCOME BACK</span><h2>Sign in to Bagged.</h2><p>Or keep going as a guest. No account is required to shop.</p>${notice}<form id="signin-form"><label>Email<input required type="email" name="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input required type="password" name="password" autocomplete="current-password" placeholder="Your password"></label><button class="btn btn-primary full" type="submit">Sign in</button></form><button class="auth-link forgot-link" type="button" data-view="forgot">Forgot password?</button><div class="auth-divider"><span>or</span></div><button class="google-button" type="button" data-google>Continue with Google</button><p class="auth-switch">New to Bagged? <button class="auth-link" type="button" data-view="signup">Create an account</button></p></section>`;
+  accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">WELCOME BACK</span><h2>Sign in to Bagged.</h2><p>Or keep going as a guest. No account is required to shop.</p>${notice}<form id="signin-form"><label>Email<input required type="email" name="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input required type="password" name="password" autocomplete="current-password" placeholder="Your password"></label><button class="btn btn-primary full" type="submit">Sign in</button></form><button class="auth-link forgot-link" type="button" data-view="forgot">Forgot password?</button><div class="auth-divider"><span>or</span></div><button class="google-button" type="button" data-google><img src="assets/google-g.svg" alt="" aria-hidden="true"><span data-google-label>Continue with Google</span></button><p class="auth-switch">New to Bagged? <button class="auth-link" type="button" data-view="signup">Create an account</button></p></section>`;
   document.getElementById('signin-form').addEventListener('submit',signIn);
   bindViewButtons();
 }
@@ -136,7 +137,7 @@ async function continueWithGoogle(event){
   if(!supabaseClient){showAccountNotice(window.supabaseClientError||'Google sign-in is temporarily unavailable. Reload and try again.','alert');return;}
   const button=event.currentTarget;
   button.disabled=true;
-  button.textContent='Connecting…';
+  setGoogleButtonLabel(button,'Connecting…');
   try{
     const settingsResponse=await fetch(`${window.BAGGED_SUPABASE_CONFIG.url}/auth/v1/settings`,{
       headers:{apikey:window.BAGGED_SUPABASE_CONFIG.publishableKey}
@@ -145,7 +146,7 @@ async function continueWithGoogle(event){
     const settings=await settingsResponse.json();
     if(!settings.external?.google){
       button.disabled=false;
-      button.textContent='Continue with Google';
+      setGoogleButtonLabel(button,'Continue with Google');
       showAccountNotice('Google sign-in is not enabled for this store yet. Use email sign-in or contact the store owner.','alert');
       return;
     }
@@ -153,7 +154,7 @@ async function continueWithGoogle(event){
     if(error)throw error;
   }catch(error){
     button.disabled=false;
-    button.textContent='Continue with Google';
+    setGoogleButtonLabel(button,'Continue with Google');
     showAccountNotice(error.message||'Google sign-in is unavailable.','alert');
   }
 }
