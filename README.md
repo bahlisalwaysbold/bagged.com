@@ -42,13 +42,14 @@ The account page checks whether Google is enabled and shows a readable message i
 
 ## Database migration
 
-The migration creates `categories`, `products`, `orders`, `order_items`, and `admin_users`; the `product-images` Storage bucket; RLS/storage policies; and the atomic `create_order` RPC.
+The initial migration creates `categories`, `products`, `orders`, `order_items`, and `admin_users`; the `product-images` Storage bucket; RLS/storage policies; and the atomic `create_order` RPC. The shop-management migration adds category icons/descriptions, product active state and canonical `image_urls`, ensures secure Storage policies, and enables catalog Realtime updates.
+The initial migration creates `categories`, `products`, `orders`, `order_items`, and `admin_users`; the `product-images` Storage bucket; RLS/storage policies; and the atomic `create_order` RPC. The shop-management migration adds category icons/descriptions, product active state and canonical `image_urls`, ensures secure Storage policies, and enables catalog Realtime updates. It also avoids resetting existing admin-controlled active values on migration reruns.
 
-The Supabase CLI is not installed in the implementation environment, and only the publishable key was supplied. A publishable key cannot apply DDL or link a project, so the migration has **not** been applied remotely.
+The Supabase CLI is not installed in the implementation environment, and only the publishable key was supplied. A publishable key cannot apply DDL or link a project, so pending migrations must be applied by an authorized project owner. The live project currently has the five base tables but no public catalog rows and no `product-images` bucket; apply the shop-management migration before using the expanded admin UI.
 
 Apply it once using either method:
 
-1. In Supabase Dashboard, open **SQL Editor**, create a query, paste the contents of `supabase/migrations/20261002000000_bagged_store.sql`, and run it.
+1. In Supabase Dashboard, open **SQL Editor**, create a query, paste the contents of each unapplied migration in timestamp order, and run it. For the current installation, apply `supabase/migrations/20261003000000_shop_management.sql` after the existing initial migration.
 2. Or install the Supabase CLI on Windows with Scoop, then run these commands from the project directory:
 
 ```powershell
