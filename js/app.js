@@ -19,6 +19,7 @@ window.addEventListener('bagged:cart-change', updateBagCount);
 document.addEventListener('DOMContentLoaded',async()=>{
 	setupPage();
 	if(document.getElementById('admin-root')) return;
+	if(!document.querySelector('#home-categories,#shop-results,#product-root,#cart-root,#checkout-summary')) return;
 	try{
 		await loadCatalog();
 		renderHomeCategories();

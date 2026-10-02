@@ -15,6 +15,31 @@ The browser uses the official Supabase JavaScript client from a pinned CDN relea
 
 To change projects, update `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `js/config.js`.
 
+## Customer authentication
+
+Customer accounts use Supabase Auth email/password sign-up and sign-in. Email verification is enabled in the current project settings. The Supabase client persists the session; the account page reads the display name from Auth user metadata. No customer profile table or custom password storage is used, and customer sign-up does not add anyone to `admin_users`. Guest checkout remains available without signing in.
+
+In Supabase **Authentication → URL Configuration**, set the Site URL for the deployed site and add these Redirect URLs (adjust the deployed host/path as needed):
+
+```text
+http://localhost:8000/**
+https://YOUR_DEPLOYED_HOST/**
+```
+
+The local URL is used by email verification and password recovery. Add the production URL before deploying.
+
+### Enable Google sign-in
+
+Google OAuth is currently disabled for this project. To enable it:
+
+1. In Google Cloud Console, configure the OAuth consent screen and create an OAuth client ID of type **Web application**.
+2. Add the local/deployed site origins to **Authorized JavaScript origins**, for example `http://localhost:8000` and `https://YOUR_DEPLOYED_HOST`.
+3. Set the Google client's **Authorized redirect URI** to `https://sqaiwhbzsczamdbpowig.supabase.co/auth/v1/callback`.
+4. In Supabase **Authentication → Sign In / Providers → Google**, enable Google and enter the Google client ID and client secret. Keep the secret in the Supabase dashboard only; never put it in `js/config.js` or other frontend files.
+5. Confirm the Bagged site URLs are in Supabase **Authentication → URL Configuration**. The app sends users back to `/account.html` after Google sign-in.
+
+The account page checks whether Google is enabled before starting OAuth and shows a readable message if it is not. Successful Google sign-in cannot be tested until the provider is configured.
+
 ## Database migration
 
 The migration creates `categories`, `products`, `orders`, `order_items`, and `admin_users`; the `product-images` Storage bucket; RLS/storage policies; and the atomic `create_order` RPC.
@@ -63,7 +88,7 @@ Open `http://localhost:8000`. Alternatively, open this folder in VS Code and sta
 
 Deploy the contents of this folder to any static host (for example, Netlify, Vercel, or Cloudflare Pages). Set the site's root/output directory to this folder, configure your Supabase URL and publishable key in `js/config.js`, and allow the deployed origin in Supabase **Authentication → URL Configuration**. Apply the migration and create an admin before expecting catalog or dashboard data.
 
-The provided checkout creates a pay-on-delivery order only. Card processing, delivery pricing, refunds, and customer account/profile workflows are intentionally not represented as completed payment features.
+Customer sign-up/sign-in and password recovery use Supabase Auth; account display names are stored in Auth user metadata, not a separate profile table. Google OAuth requires provider setup in Supabase and Google Cloud Console. Checkout currently creates pay-on-delivery orders only; card processing, delivery pricing, and refunds are not implemented.
 
 ## Data and security
 
