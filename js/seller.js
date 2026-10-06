@@ -5,6 +5,115 @@ let sellerProducts=[];
 let sellerCategories=[];
 let sellerBoostPlans=[];
 let sellerBoostOrders=[];
+let sellerNotifications=[];
+let sellerNotificationsReady=false;
+let sellerNotificationChannel=null;
+let sellerNotificationPoll=null;
+
+function notificationTime(value){
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return '';
+  return date.toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'});
+}
+
+function updateSellerNotificationBadge(){
+  const badge=document.getElementById('seller-notification-count');
+  if(!badge)return;
+  const unread=sellerNotifications.filter(item=>!item.read_at).length;
+  badge.textContent=unread>99?'99+':String(unread);
+  badge.classList.toggle('hidden',unread===0);
+}
+
+function renderSellerNotifications(){
+  const panel=document.getElementById('seller-notifications-panel');
+  if(!panel)return;
+  const unread=sellerNotifications.filter(item=>!item.read_at).length;
+  panel.innerHTML='<div class="seller-notifications-head"><div><span class="eyebrow">SELLER ALERTS</span><strong>'+unread+' unread</strong></div><button class="table-btn" type="button" id="mark-all-seller-notifications">'+(unread?'Mark all read':'All caught up')+'</button></div>'+
+    (sellerNotifications.length
+      ?'<div class="seller-notification-list">'+sellerNotifications.slice(0,20).map(item=>'<button type="button" class="seller-notification '+(item.read_at?'read':'unread')+'" data-mark-notification="'+escapeHtml(item.id)+'"><span class="seller-notification-icon">🎉</span><span class="seller-notification-copy"><strong>'+escapeHtml(item.title||'You made a sale!')+'</strong><span>'+escapeHtml(item.body||'A customer ordered one of your listings.')+'</span><small>'+escapeHtml(notificationTime(item.created_at))+'</small></span><span class="seller-notification-dot" aria-hidden="true"></span></button>').join('')+'</div>'
+      :'<div class="seller-notifications-empty"><div>🔔</div><strong>No sales yet.</strong><p>When a buyer orders one of your listings, you’ll see it here.</p></div>');
+  updateSellerNotificationBadge();
+  panel.querySelectorAll('[data-mark-notification]').forEach(button=>button.addEventListener('click',()=>markSellerNotificationRead(button.dataset.markNotification)));
+  panel.querySelector('#mark-all-seller-notifications')?.addEventListener('click',markAllSellerNotificationsRead);
+}
+
+async function loadSellerNotifications(){
+  if(!sellerUser)return;
+  const {data,error}=await supabaseClient
+    .from('seller_notifications')
+    .select('id,order_id,product_id,product_name,quantity,order_number,title,body,read_at,created_at')
+    .eq('seller_id',sellerUser.id)
+    .order('created_at',{ascending:false})
+    .limit(20);
+  if(error)throw error;
+  sellerNotifications=data||[];
+  sellerNotificationsReady=true;
+  renderSellerNotifications();
+}
+
+async function markSellerNotificationRead(id){
+  if(!id||!sellerUser)return;
+  const target=sellerNotifications.find(item=>item.id===id);
+  if(!target||target.read_at)return;
+  const {error}=await supabaseClient
+    .from('seller_notifications')
+    .update({read_at:new Date().toISOString()})
+    .eq('id',id)
+    .eq('seller_id',sellerUser.id);
+  if(error){showToast(error.message||'Could not mark notification as read.');return;}
+  target.read_at=new Date().toISOString();
+  renderSellerNotifications();
+}
+
+async function markAllSellerNotificationsRead(){
+  if(!sellerUser||!sellerNotifications.some(item=>!item.read_at))return;
+  const readAt=new Date().toISOString();
+  const {error}=await supabaseClient
+    .from('seller_notifications')
+    .update({read_at:readAt})
+    .eq('seller_id',sellerUser.id)
+    .is('read_at',null);
+  if(error){showToast(error.message||'Could not mark notifications as read.');return;}
+  sellerNotifications.forEach(item=>{if(!item.read_at)item.read_at=readAt;});
+  renderSellerNotifications();
+}
+
+function setupSellerNotificationUI(){
+  const button=document.getElementById('seller-notification-btn');
+  const panel=document.getElementById('seller-notifications-panel');
+  if(!button||!panel||button.dataset.bound)return;
+  button.dataset.bound='true';
+  button.addEventListener('click',event=>{
+    event.stopPropagation();
+    const isOpen=!panel.classList.contains('hidden');
+    panel.classList.toggle('hidden',isOpen);
+    button.setAttribute('aria-expanded',isOpen?'false':'true');
+  });
+  document.addEventListener('click',event=>{
+    if(panel.classList.contains('hidden'))return;
+    if(button.contains(event.target)||panel.contains(event.target))return;
+    panel.classList.add('hidden');
+    button.setAttribute('aria-expanded','false');
+  });
+}
+
+function subscribeSellerNotifications(){
+  if(!sellerNotificationsReady||!sellerUser||sellerNotificationChannel)return;
+  sellerNotificationChannel=supabaseClient.channel('seller-notifications-'+sellerUser.id)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'seller_notifications',filter:'seller_id=eq.'+sellerUser.id},payload=>{
+      const notification=payload.new;
+      if(!notification||sellerNotifications.some(item=>item.id===notification.id))return;
+      sellerNotifications=[notification,...sellerNotifications].slice(0,20);
+      renderSellerNotifications();
+      showToast('🎉 '+(notification.title||'You just made a sale!'));
+    })
+    .subscribe();
+  sellerNotificationPoll=setInterval(async()=>{
+    if(document.hidden)return;
+    try{await loadSellerNotifications();}catch{}
+  },30000);
+}
+
 
 function sellerMessage(message,type='status'){
   const box=document.getElementById('seller-message');
@@ -117,6 +226,9 @@ async function loadSellerData(){
   if(!marketplaceRole && sellerProfile.store_name){try{await setMarketplaceRole('seller');}catch{}}
   sellerBoostPlans=boostPlanResult.data||[];
   sellerBoostOrders=boostOrderResult.data||[];
+  try{await loadSellerNotifications();}catch{sellerNotifications=[];sellerNotificationsReady=false;}
+  setupSellerNotificationUI();
+  subscribeSellerNotifications();
   sellerProducts=(productsResult.data||[]).map(mapProduct);
   sellerCategories=(categoryResult.data||[]).map(mapCategory);
   renderSellerPage();
