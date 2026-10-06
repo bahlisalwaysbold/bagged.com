@@ -31,6 +31,11 @@ function applyMarketplaceRoleUI(role){
   document.body.dataset.marketplaceRole=currentRole;
 
   const sellerVisible=currentRole==='seller'||currentRole==='both';
+  if(!/seller\.html$/i.test(location.pathname)){
+    document.querySelectorAll('a[href="seller.html"]').forEach(el=>{
+      if(!el.classList.contains('role-seller-tools'))el.classList.add('role-seller-tools');
+    });
+  }
   document.querySelectorAll('.role-seller-tools').forEach(el=>{
     el.classList.toggle('role-hidden',!sellerVisible);
     el.setAttribute('aria-hidden',sellerVisible?'false':'true');
