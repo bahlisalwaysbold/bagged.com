@@ -16,7 +16,7 @@ function accountNextTarget(){
   try{
     const url=new URL(raw,location.href);
     if(url.origin!==location.origin)return '';
-    return url.pathname.replace(/^\\//,'')+(url.search||'')+(url.hash||'');
+    return url.pathname.replace(/^\/+ /,'')+(url.search||'')+(url.hash||'');
   }catch{return '';}
 }
 function accountOAuthRedirectUrl(){
