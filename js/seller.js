@@ -13,15 +13,25 @@ let sellerNotificationPoll=null;
 
 function renderSellerVerification(){
   const verified=sellerProfile?.verified===true && sellerProfile?.verification_status==='verified';
-  const status=sellerProfile?.verification_status||'unverified';
   if(verified){
-    return '<section class="seller-panel seller-verification-panel verified"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Identity verified. ✓</h2></div><span class="seller-status">✓ Verified</span></div><p>Your identity has been manually reviewed by Bagged. You can publish listings and build your seller reputation.</p><div class="verification-proof"><span>✓ Identity checked</span><span>✓ Seller privileges unlocked</span></div></section>';
+    const provider=sellerVerificationRequest?.provider==='smile_id'?'Smile ID':'Bagged';
+    return '<section class="seller-panel seller-verification-panel verified"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Identity verified. ✓</h2></div><span class="seller-status">✓ Verified</span></div><p>Your identity has been verified for selling on Bagged'+(provider==='Smile ID'?' using Smile ID.':' by Bagged.')+' You can publish listings and build your seller reputation.</p><div class="verification-proof"><span>✓ Identity checked</span><span>✓ Seller privileges unlocked</span></div></section>';
   }
-  if(sellerVerificationRequest?.status==='pending'){
-    return '<section class="seller-panel seller-verification-panel pending"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Verification is being reviewed.</h2></div><span class="seller-status">Pending</span></div><p>Bagged is reviewing your seller details. We may contact you to inspect your government ID. You cannot publish listings until approval.</p><div class="verification-proof"><span>Submitted '+escapeHtml(sellerVerificationRequest.legal_name)+'</span><span>'+escapeHtml(sellerVerificationRequest.id_type)+'</span></div></section>';
+
+  const request=sellerVerificationRequest;
+  if(request?.provider==='smile_id'&&request.status==='pending'){
+    const underReview=request.provider_status==='provisional';
+    return '<section class="seller-panel seller-verification-panel pending"><div class="panel-heading"><div><span class="eyebrow">AUTOMATED KYC</span><h2>'+ (underReview?'Smile ID is reviewing your check.':'Identity check in progress.') +'</h2></div><span class="seller-status">'+(underReview?'Under review':'Pending')+'</span></div><p>Smile ID is securely checking your government ID and selfie/liveness. Bagged does not ask you to paste your full NIN or BVN into this page.</p><div class="verification-proof"><span>✓ ID + selfie handled securely</span><span>✓ You can leave this page</span></div><button id="check-smile-verification" class="btn btn-secondary" type="button">Check verification status</button></section>';
   }
-  const rejection=sellerVerificationRequest?.status==='rejected' ? '<p class="verification-rejection"><strong>Review note:</strong> '+escapeHtml(sellerVerificationRequest.rejection_reason||'Your last request was not approved. Check your details and submit again.')+'</p>' : '';
-  return '<section class="seller-panel seller-verification-panel"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Verify before you sell.</h2></div><span class="seller-status">Not verified</span></div><p>For launch, Bagged uses free manual verification. Submit your real details, then our admin will verify your identity before you can publish listings.</p>'+rejection+'<form id="verification-form" class="seller-form"><label>Full legal name<input required name="legalName" maxlength="160" value="'+escapeHtml(sellerVerificationRequest?.legal_name||'')+'" placeholder="Name on your government ID"></label><div class="two-col"><label>Phone number<input required name="phone" autocomplete="tel" maxlength="40" value="'+escapeHtml(sellerVerificationRequest?.phone||sellerProfile?.phone||'')+'" placeholder="0801 234 5678"></label><label>Location<input required name="location" maxlength="120" value="'+escapeHtml(sellerVerificationRequest?.location||sellerProfile?.location||'')+'" placeholder="City, State"></label></div><div class="two-col"><label>Government ID<select required name="idType"><option value="">Choose ID type</option><option>NIN</option><option>International passport</option><option>Driver\'s licence</option><option>Voter\'s card</option><option>Other government ID</option></select></label><label>Last digits only<input name="idLast4" inputmode="numeric" maxlength="12" value="'+escapeHtml(sellerVerificationRequest?.id_last4||'')+'" placeholder="Last 4 digits (optional)"></label></div><label>Anything we should know?<textarea name="sellerNote" rows="3" maxlength="600" placeholder="Optional context for the Bagged admin."></textarea><small class="verification-privacy">Never enter your full NIN, BVN, password, or upload an ID document here. Bagged will contact you for the manual ID check.</small><p id="verification-message" class="seller-message" role="status"></p><button class="btn btn-primary full" type="submit">Submit verification request →</button></form></section>';
+
+  const rejection=request?.status==='rejected'
+    ?'<p class="verification-rejection"><strong>Review note:</strong> '+escapeHtml(request.rejection_reason||'The last verification attempt was not approved. You can try again.')+'</p>'
+    :'';
+  const providerFailure=request?.provider_status==='error'
+    ?'<p class="verification-rejection"><strong>Verification could not complete.</strong> Start a new Smile ID check below.</p>'
+    :'';
+
+  return '<section class="seller-panel seller-verification-panel"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Verify before you sell.</h2></div><span class="seller-status">Not verified</span></div><p>Use Smile ID for the normal Bagged verification flow. It securely handles the ID details and selfie/liveness check, then sends Bagged only the verification result we need to unlock selling.</p>'+rejection+providerFailure+'<div class="verification-proof"><span>✓ Automated KYC</span><span>✓ Seller verification is free to request</span></div><div class="verification-actions"><button id="start-smile-verification" class="btn btn-primary full" type="button">Verify with Smile ID →</button><small>Verification is safety, not advertising. You do not need a paid Boost to get verified.</small></div><details class="verification-manual"><summary>Need a manual review instead?</summary><p class="form-hint">Bagged still keeps a manual verification fallback for sellers who cannot complete the automated check.</p><form id="verification-form" class="seller-form"><label>Full legal name<input required name="legalName" maxlength="160" value="'+escapeHtml(request?.legal_name||'')+'" placeholder="Name on your government ID"></label><div class="two-col"><label>Phone number<input required name="phone" autocomplete="tel" maxlength="40" value="'+escapeHtml(request?.phone||sellerProfile?.phone||'')+'" placeholder="0801 234 5678"></label><label>Location<input required name="location" maxlength="120" value="'+escapeHtml(request?.location||sellerProfile?.location||'')+'" placeholder="City, State"></label></div><div class="two-col"><label>Government ID<select required name="idType"><option value="">Choose ID type</option><option>NIN</option><option>International passport</option><option>Driver\'s licence</option><option>Voter\'s card</option><option>Other government ID</option></select></label><label>Last digits only<input name="idLast4" inputmode="numeric" maxlength="12" value="'+escapeHtml(request?.id_last4||'')+'" placeholder="Last 4 digits (optional)"></label></div><label>Anything we should know?<textarea name="sellerNote" rows="3" maxlength="600" placeholder="Optional context for the Bagged admin."></textarea><small class="verification-privacy">Never enter your full NIN, BVN, password, or upload an ID document here. Bagged will contact you for the manual ID check.</small><p id="verification-message" class="seller-message" role="status"></p><button class="btn btn-secondary full" type="submit">Submit manual verification request →</button></form></details><p class="verification-privacy"><a href="privacy.html">Read Bagged's identity-verification privacy notice.</a></p></section>';
 }
 
 async function submitSellerVerification(event){
@@ -75,9 +85,110 @@ async function submitSellerVerification(event){
   }
 }
 
+
+
+async function refreshSellerVerificationState(){
+  const [profileResult,requestResult]=await Promise.all([
+    supabaseClient.from('seller_profiles').select('*').eq('user_id',sellerUser.id).maybeSingle(),
+    supabaseClient.from('seller_verification_requests').select('id,seller_id,legal_name,phone,location,id_type,id_last4,seller_note,status,rejection_reason,reviewed_at,created_at,provider,provider_user_id,provider_job_id,provider_smile_job_id,provider_status,provider_action_result_code,provider_id_result_code,provider_result_code,provider_result_text,provider_verified_at').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
+  ]);
+  if(profileResult.error)throw profileResult.error;
+  if(requestResult.error)throw requestResult.error;
+  sellerProfile=profileResult.data||sellerProfile;
+  sellerVerificationRequest=requestResult.data||null;
+  return sellerVerificationRequest;
+}
+
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+
+async function pollSmileVerification(requestId){
+  for(let attempt=0;attempt<30;attempt++){
+    try{
+      const request=await refreshSellerVerificationState();
+      const verified=sellerProfile?.verified===true && sellerProfile?.verification_status==='verified';
+      if(verified||request?.status==='approved'){
+        showToast('Identity verified. ✅');
+        renderSellerPage();
+        return true;
+      }
+      if(request?.status==='rejected'){
+        showToast('Smile ID did not approve this verification.');
+        renderSellerPage();
+        return false;
+      }
+      if(request?.provider_status==='error'||request?.status==='withdrawn'){
+        renderSellerPage();
+        return false;
+      }
+    }catch{}
+    await sleep(2500);
+  }
+  renderSellerPage();
+  showToast('Your verification is still processing. You can check again from Seller Center.');
+  return false;
+}
+
+async function startSmileVerification(){
+  const button=document.getElementById('start-smile-verification');
+  if(button){button.disabled=true;button.textContent='Preparing secure verification…';}
+  try{
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    if(!session?.access_token)throw new Error('Sign in again before starting verification.');
+    const response=await fetch('/api/smile/start',{
+      method:'POST',
+      headers:{Authorization:'Bearer '+session.access_token,Accept:'application/json'}
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Could not start Smile ID verification.');
+    if(data.already_started){
+      showToast('Your Smile ID check is already processing.');
+      await pollSmileVerification(data.request_id);
+      return;
+    }
+    if(!data.token||!window.SmileIdentity)throw new Error('Smile ID verification is not available right now.');
+    window.SmileIdentity({
+      token:data.token,
+      product:'biometric_kyc',
+      environment:data.environment,
+      callback_url:data.callback_url,
+      use_strict_mode:true,
+      id_selection:{NG:['NIN','BVN']},
+      partner_details:{
+        name:'Bagged',
+        logo_url:new URL('assets/logo.svg',location.href).href,
+        partner_id:data.partner_id,
+        policy_url:new URL('privacy.html',location.href).href,
+        theme_color:'#FFC400'
+      },
+      partner_params:{bagged_verification_request_id:data.request_id},
+      onSuccess:async()=>{
+        showToast('Verification submitted. 🔎');
+        await pollSmileVerification(data.request_id);
+      },
+      onError:(error)=>{
+        const message=typeof error==='string'?error:(error?.message||'Smile ID could not complete the check.');
+        showToast(message);
+      },
+      onClose:()=>{}
+    });
+  }catch(error){
+    showToast(error.message||'Could not start identity verification.');
+    try{await refreshSellerVerificationState();renderSellerPage();}catch{}
+  }finally{
+    const current=document.getElementById('start-smile-verification');
+    if(current){current.disabled=false;current.textContent='Verify with Smile ID →';}
+  }
+}
+
 function bindSellerVerification(){
   const form=document.getElementById('verification-form');
   if(form)form.addEventListener('submit',submitSellerVerification);
+  document.getElementById('start-smile-verification')?.addEventListener('click',startSmileVerification);
+  document.getElementById('check-smile-verification')?.addEventListener('click',async event=>{
+    event.currentTarget.disabled=true;
+    event.currentTarget.textContent='Checking…';
+    try{await pollSmileVerification(sellerVerificationRequest?.id);}finally{event.currentTarget.disabled=false;event.currentTarget.textContent='Check verification status';}
+  });
 }
 
 function notificationTime(value){
@@ -283,7 +394,7 @@ async function loadSellerData(){
     supabaseClient.from('boost_plans').select('id,name,days,price,priority,description').eq('is_active',true).order('price'),
     supabaseClient.from('boost_orders').select('id,product_id,plan_id,amount,status,payment_reference,activated_at,created_at,boost_plans(name,days,priority,description)').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}),
     supabaseClient.from('marketplace_preferences').select('role').eq('user_id',sellerUser.id).maybeSingle(),
-    supabaseClient.from('seller_verification_requests').select('id,seller_id,legal_name,phone,location,id_type,id_last4,seller_note,status,rejection_reason,reviewed_at,created_at').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
+    supabaseClient.from('seller_verification_requests').select('id,seller_id,legal_name,phone,location,id_type,id_last4,seller_note,status,rejection_reason,reviewed_at,created_at,provider,provider_user_id,provider_job_id,provider_smile_job_id,provider_status,provider_action_result_code,provider_id_result_code,provider_result_code,provider_result_text,provider_verified_at').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
   ]);
   if(profileResult.error)throw profileResult.error;
   if(productsResult.error)throw productsResult.error;
@@ -325,7 +436,7 @@ async function saveSellerProfile(event){
     if(error)throw error;
     sellerProfile=data;
     message.textContent='Seller profile saved.';
-    sellerRoot.querySelector('.seller-status').textContent=data.verified?'✓ Verified':'Free seller';
+    sellerRoot.querySelector('.seller-status').textContent=data.verified&&data.verification_status==='verified'?'✓ Verified':data.verification_status==='pending'?'Pending':'Free seller';
   }catch(error){message.textContent=error.message||'Could not save your seller profile.';message.className='seller-message form-error';}
   finally{submit.disabled=false;}
 }
