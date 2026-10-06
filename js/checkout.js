@@ -25,7 +25,15 @@ form.addEventListener('submit',async event=>{
 			payment:String(values.get('payment')).trim()
 		};
 		const order=await createOrder(customer,items);
-		items.forEach(item=>window.BaggedDiscovery?.trackMarketplaceEvent('purchase',{productId:item.id,categoryId:item.product.categoryId,throttleValue:'purchase:'+order.id+':'+item.id}));
+		const catalogProducts=getProducts();
+		items.forEach(item=>{
+			const product=catalogProducts.find(product=>product.id===item.id);
+			window.BaggedDiscovery?.trackMarketplaceEvent('purchase',{
+				productId:item.id,
+				categoryId:product?.categoryId||null,
+				throttleValue:'purchase:'+order.id+':'+item.id
+			});
+		});
 		setCart([]);
 		document.querySelector('.checkout-grid').innerHTML=`<div class="success-card"><div class="success-icon">🛍</div><span class="eyebrow">ORDER CONFIRMED</span><h1>Your order is bagged! 🎉</h1><p>Order <strong>${escapeHtml(order.order_number)}</strong> has been received. The store owner can now process your delivery.</p><div class="hero-actions"><a class="btn btn-primary" href="shop.html">Bag more stuff</a><a class="btn btn-secondary" href="index.html">Back home</a></div></div>`;
 	}catch(error){
