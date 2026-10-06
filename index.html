@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Bagged — Buy anything. Sell anything. Get Bagged.">
-  <title>Bagged — Buy. Sell. Get Bagged.</title>
+  <meta name="description" content="Bagged — Find it. Bag it. Buy anything and sell anything on one marketplace.">
+  <title>Bagged — Find It. Bag It.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -31,18 +31,28 @@
       <div class="hero-copy">
         <span class="eyebrow">BUY · SELL · DISCOVER</span>
         <h1>Buy anything.<br><span>Sell anything.</span></h1>
-        <p>Bagged is the marketplace for the stuff people actually want — from phones and laptops to furniture, fashion, cars, services and that random thing sitting in your room.</p>
-        <div class="hero-actions"><a class="btn btn-primary" href="shop.html">Start shopping →</a><a class="btn btn-secondary role-seller-tools" href="seller.html">Sell something free</a></div>
-        <div class="trust-row"><span>✓ Free seller listings</span><span>✓ Real seller profiles</span><span>✓ WhatsApp-friendly</span></div>
+        <p>Find useful stuff, good deals and services — or put your own things in front of buyers.</p>
+        <form id="home-search" class="home-search" action="shop.html" method="get" role="search">
+          <label class="sr-only" for="home-search-input">Search Bagged</label>
+          <input id="home-search-input" name="search" type="search" autocomplete="off" placeholder="What are you looking for?" aria-label="What are you looking for?">
+          <button class="btn btn-primary" type="submit">Find it →</button>
+        </form>
+        <div class="hero-actions"><a class="btn btn-secondary" href="shop.html">Browse everything</a><a class="btn btn-secondary role-seller-tools" href="seller.html">Sell something free</a></div>
+        <div class="trust-row"><span>✓ Free seller listings</span><span>✓ Real seller profiles</span><span>✓ Save your finds</span></div>
       </div>
       <div class="hero-art">
-        <div class="burst">POST<br>IT.</div>
+        <div class="burst">FIND<br>IT.</div>
         <div class="hero-card marketplace-card">
-          <span class="product-chip">YOUR MARKETPLACE</span>
+          <span class="product-chip">THE BAGGED MARKETPLACE</span>
           <div class="marketplace-stack"><b>IPHONE</b><span>₦650,000</span><b>PS5</b><span>₦780,000</span><b>SOFA</b><span>₦120,000</span><b>YOUR THING</b><span>Priced by you.</span></div>
-          <div class="hero-card-copy"><strong>One place.</strong><span>Thousands of possibilities.</span></div>
+          <div class="hero-card-copy"><strong>Find it. Bag it.</strong><span>Whatever you're after.</span></div>
         </div>
       </div>
+    </section>
+
+    <section class="live-marketplace container products-section" id="live-marketplace-section">
+      <div class="section-head"><div><span class="eyebrow">LIVE ON BAGGED</span><h2>See what's up for grabs.</h2><p class="section-note">Real listings from real sellers, updated as people post.</p></div><a class="text-link" href="shop.html">Shop everything →</a></div>
+      <div id="homepage-products" class="product-grid"></div>
     </section>
 
     <section class="sell-strip container role-seller-tools">
@@ -56,18 +66,18 @@
     </section>
 
     <section class="discovery-section products-section container" id="boosted-section">
-      <div class="section-head"><div><span class="eyebrow">PAID VISIBILITY</span><h2>⭐ Featured on Bagged.</h2><p class="section-note">Boosted listings get premium placement while their boost is active.</p></div><a class="text-link role-seller-tools" href="seller.html">Boost a listing →</a></div>
+      <div class="section-head"><div><span class="eyebrow">PEOPLE ARE LOOKING</span><h2>⭐ Popular on Bagged.</h2><p class="section-note">Products getting noticed across the marketplace.</p></div><a class="text-link role-seller-tools" href="seller.html">Get more visibility →</a></div>
       <div id="boosted-products" class="product-grid"></div>
     </section>
 
     <section class="discovery-section products-section container" id="trending-section">
-      <div class="section-head"><div><span class="eyebrow">WHAT'S HOT</span><h2>🔥 Trending this week.</h2><p class="section-note">What people across Bagged are searching, viewing and buying right now.</p></div><a class="text-link" href="shop.html">Shop trends →</a></div>
+      <div class="section-head"><div><span class="eyebrow">WHAT'S HOT</span><h2>🔥 Trending this week.</h2><p class="section-note">What people across Bagged are searching, viewing and buying.</p></div><a class="text-link" href="shop.html">Shop trends →</a></div>
       <div id="trending-terms" class="trend-chips"></div>
       <div id="trending-products" class="product-grid"></div>
     </section>
 
     <section class="discovery-section products-section container" id="personalized-section">
-      <div class="section-head"><div><span class="eyebrow">MADE FOR YOU</span><h2>❤️ Picked for you.</h2><p class="section-note">Based on the things you search, view and bag on Bagged.</p></div><a class="text-link role-seller-tools" href="seller.html">Sell something →</a></div>
+      <div class="section-head"><div><span class="eyebrow">MADE FOR YOU</span><h2>❤️ Picked for you.</h2><p class="section-note">A mix of things that fit what you browse on Bagged.</p></div><a class="text-link role-seller-tools" href="seller.html">Sell something →</a></div>
       <div id="personalized-products" class="product-grid"></div>
     </section>
 
@@ -77,13 +87,13 @@
     </section>
 
     <section class="promo marketplace-promo container seller-only-ui">
-      <div><span class="eyebrow">WHY SELL HERE?</span><h2>Your products.<br>Our traffic.</h2><p>Start free. Later, sellers can pay for optional boosts, better storefront tools and secure transaction services.</p><a class="btn btn-dark" href="seller.html">Open seller dashboard →</a></div>
+      <div><span class="eyebrow">WHY SELL HERE?</span><h2>Your products.<br>Our marketplace.</h2><p>Start free. Grow your listings with tools that help more buyers discover them.</p><a class="btn btn-dark" href="seller.html">Open seller dashboard →</a></div>
       <div class="promo-art">🚀</div>
     </section>
 
     <section class="steps container">
       <div class="section-head"><div><span class="eyebrow">BUYER FLOW</span><h2>See it. Check it. Bag it.</h2></div></div>
-      <div class="steps-grid"><div><b>01</b><h3>Find it</h3><p>Search products, categories and seller listings.</p></div><div><b>02</b><h3>Check it</h3><p>Review price, photos, condition and seller details.</p></div><div><b>03</b><h3>Bag it</h3><p>Add the item to your bag and head to checkout.</p></div><div><b>04</b><h3>Get it</h3><p>Confirm delivery and track the order with Bagged.</p></div></div>
+      <div class="steps-grid"><div><b>01</b><h3>Find it</h3><p>Search products, categories and seller listings.</p></div><div><b>02</b><h3>Check it</h3><p>Review price, photos, condition and seller details.</p></div><div><b>03</b><h3>Bag it</h3><p>Add the item to your bag and head to checkout.</p></div><div><b>04</b><h3>Get it</h3><p>Confirm delivery and keep your order details handy.</p></div></div>
     </section>
   </main>
 
