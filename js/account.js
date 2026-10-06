@@ -10,6 +10,25 @@ const ROLE_KEY='bagged_signup_role';
 const accountSessionTimeoutMs=8000;
 
 function accountRedirectUrl(){return new URL('account.html',location.href).href.split(/[?#]/)[0];}
+function accountNextTarget(){
+  const raw=new URLSearchParams(location.search).get('next');
+  if(!raw)return '';
+  try{
+    const url=new URL(raw,location.href);
+    if(url.origin!==location.origin)return '';
+    return url.pathname.replace(/^\\//,'')+(url.search||'')+(url.hash||'');
+  }catch{return '';}
+}
+function accountOAuthRedirectUrl(){
+  const base=accountRedirectUrl();
+  const next=accountNextTarget();
+  return next ? base+'?next='+encodeURIComponent(next) : base;
+}
+function accountAfterAuth(){
+  const next=accountNextTarget();
+  if(next){window.location.assign(next);return true;}
+  return false;
+}
 function customerName(user){return user.user_metadata?.full_name||user.user_metadata?.name||'Bagged customer';}
 function showAccountNotice(message,type='status'){accountNotice=message;accountNoticeType=type;renderAccount();}
 function setGoogleButtonLabel(button,label){const text=button.querySelector('[data-google-label]');if(text)text.textContent=label;}
@@ -128,6 +147,7 @@ async function signIn(event){
     if(error)throw error;
     accountUser=data.user;
     await ensureAccountMarketplaceRole();
+    if(accountAfterAuth())return;
     accountNotice='You’re signed in.';
     renderAccount();
   }catch(error){setFormBusy(form,false);showAccountNotice(error.message||'Could not sign in. Check your details and try again.','alert');}
@@ -149,7 +169,7 @@ async function signUp(event){
       options:{data:{full_name:String(values.get('name')).trim(),marketplace_role:accountMarketplaceRole},emailRedirectTo:accountRedirectUrl()}
     });
     if(error)throw error;
-    if(data.session){accountUser=data.user;await ensureAccountMarketplaceRole();accountNotice='Your email is verified. Welcome to Bagged.';accountView='signin';renderAccount();}
+    if(data.session){accountUser=data.user;await ensureAccountMarketplaceRole();if(accountAfterAuth())return;accountNotice='Your email is verified. Welcome to Bagged.';accountView='signin';renderAccount();}
     else{accountView='signin';showAccountNotice('Check your inbox for a verification link before signing in.');}
   }catch(error){setFormBusy(form,false);showAccountNotice(error.message||'Could not create your account. Please try again.','alert');}
 }
@@ -204,7 +224,7 @@ async function continueWithGoogle(event){
       showAccountNotice('Google sign-in is not enabled for this store yet. Use email sign-in or contact the store owner.','alert');
       return;
     }
-    const {error}=await supabaseClient.auth.signInWithOAuth({provider:'google',options:{redirectTo:accountRedirectUrl()}});
+    const {error}=await supabaseClient.auth.signInWithOAuth({provider:'google',options:{redirectTo:accountOAuthRedirectUrl()}});
     if(error)throw error;
   }catch(error){
     button.disabled=false;
@@ -273,7 +293,10 @@ function initializeAccount(){
       return;
     }
     accountUser=data.session?.user||null;
-    if(accountUser)await ensureAccountMarketplaceRole();
+    if(accountUser){
+      await ensureAccountMarketplaceRole();
+      if(accountAfterAuth())return;
+    }
     const hashParams=new URLSearchParams(location.hash.slice(1));
     const queryParams=new URLSearchParams(location.search);
     const redirectError=hashParams.get('error_description')||hashParams.get('error')||queryParams.get('error_description')||queryParams.get('error');
