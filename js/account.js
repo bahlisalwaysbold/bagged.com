@@ -25,6 +25,10 @@ function renderAccount(){
     accountNoticeType='alert';
   }
   const notice=accountNotice?`<p class="auth-message ${accountNoticeType==='alert'?'form-error':'catalog-message'}" role="${accountNoticeType}" aria-live="polite">${escapeHtml(accountNotice)}</p>`:'';
+  if(accountView==='signup'){
+    const savedRole=localStorage.getItem(ROLE_KEY);
+    if(savedRole&&['buyer','seller','both'].includes(savedRole))accountMarketplaceRole=savedRole;
+  }
   if(accountUser&&accountView!=='update-password'){
     const sellerTools=accountMarketplaceRole==='seller'||accountMarketplaceRole==='both';
     accountRoot.innerHTML=`<section class="auth-panel account-summary"><span class="eyebrow">SIGNED IN</span><h2>${escapeHtml(customerName(accountUser))}</h2><p class="account-email">${escapeHtml(accountUser.email||'')}</p>${notice}<div class="account-preference"><span class="eyebrow">YOUR BAGGED MODE</span><h3>What are you here to do?</h3><div class="role-choice-grid compact"><label class="role-choice"><input type="radio" name="accountRole" value="buyer" ${accountMarketplaceRole==='buyer'?'checked':''}><span><b>🛍️ Buyer</b><small>I mainly want to discover and buy.</small></span></label><label class="role-choice"><input type="radio" name="accountRole" value="seller" ${accountMarketplaceRole==='seller'?'checked':''}><span><b>🚀 Seller</b><small>I mainly want to sell and grow listings.</small></span></label><label class="role-choice"><input type="radio" name="accountRole" value="both" ${accountMarketplaceRole==='both'?'checked':''}><span><b>⚡ Both</b><small>I want the full Bagged experience.</small></span></label></div><p id="role-message" class="seller-message" role="status"></p><button id="save-role" class="btn btn-primary full" type="button">Save my preference</button></div>${sellerTools?'<a class="btn btn-primary full" href="seller.html">Go to my seller dashboard →</a>':''}<button id="sign-out" class="btn btn-secondary full" type="button">Sign out</button></section>`;
@@ -45,8 +49,6 @@ function renderAccount(){
   }
   if(accountView==='signup'){
     accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">CREATE AN ACCOUNT</span><h2>Join Bagged.</h2><p>Tell us how you want to use Bagged. You can change this later.</p>${notice}<form id="signup-form"><label>Full name<input required name="name" autocomplete="name" maxlength="120" placeholder="Your name"></label><label>Email<input required type="email" name="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input required type="password" name="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label><fieldset class="role-fieldset"><legend>What are you here to do?</legend><div class="role-choice-grid"><label class="role-choice"><input required type="radio" name="marketplaceRole" value="buyer" ${accountMarketplaceRole==='buyer'?'checked':''}><span><b>🛍️ Buy</b><small>I want to discover and buy things.</small></span></label><label class="role-choice"><input type="radio" name="marketplaceRole" value="seller" ${accountMarketplaceRole==='seller'?'checked':''}><span><b>🚀 Sell</b><small>I want to post and grow listings.</small></span></label><label class="role-choice"><input type="radio" name="marketplaceRole" value="both" ${accountMarketplaceRole==='both'?'checked':''}><span><b>⚡ Both</b><small>I want to buy and sell.</small></span></label></div></fieldset><button class="btn btn-primary full" type="submit">Create account</button></form><div class="auth-divider"><span>or</span></div><button class="google-button" type="button" data-google><img src="assets/google-g.svg" alt="" aria-hidden="true"><span data-google-label>Continue with Google</span></button><p class="auth-switch">Already have an account? <button class="auth-link" type="button" data-view="signin">Sign in</button></p></section>`;
-    const savedRole=localStorage.getItem(ROLE_KEY);
-    if(savedRole&&['buyer','seller','both'].includes(savedRole))accountMarketplaceRole=savedRole;
     accountRoot.querySelectorAll('input[name="marketplaceRole"]').forEach(input=>input.addEventListener('change',()=>{accountMarketplaceRole=input.value;localStorage.setItem(ROLE_KEY,input.value);}));
     bindViewButtons();
     return;
@@ -147,7 +149,7 @@ async function signUp(event){
       options:{data:{full_name:String(values.get('name')).trim(),marketplace_role:accountMarketplaceRole},emailRedirectTo:accountRedirectUrl()}
     });
     if(error)throw error;
-    if(data.session){accountUser=data.user;accountNotice='Your email is verified. Welcome to Bagged.';accountView='signin';renderAccount();}
+    if(data.session){accountUser=data.user;await ensureAccountMarketplaceRole();accountNotice='Your email is verified. Welcome to Bagged.';accountView='signin';renderAccount();}
     else{accountView='signin';showAccountNotice('Check your inbox for a verification link before signing in.');}
   }catch(error){setFormBusy(form,false);showAccountNotice(error.message||'Could not create your account. Please try again.','alert');}
 }
