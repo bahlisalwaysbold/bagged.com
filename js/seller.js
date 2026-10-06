@@ -208,10 +208,11 @@ function sellerFormValues(){
 }
 
 function renderSellerPage(){
+  const canPublish=sellerProfile?.verified===true && sellerProfile?.verification_status==='verified';
   const categoryOptions=sellerCategories.map(c=>'<option value="'+escapeHtml(c.name)+'">'+escapeHtml(c.name)+'</option>').join('');
   sellerRoot.innerHTML=renderSellerVerification()+'<div class="seller-dashboard-grid">'+
     '<section class="seller-panel">'+
-      '<div class="panel-heading"><div><span class="eyebrow">YOUR SELLER PROFILE</span><h2>Set up your shop.</h2></div><span class="seller-status">'+(sellerProfile?.verified?'✓ Verified':'Free seller')+'</span></div>'+
+      '<div class="panel-heading"><div><span class="eyebrow">YOUR SELLER PROFILE</span><h2>Set up your shop.</h2></div><span class="seller-status">'+(sellerProfile?.verified&&sellerProfile?.verification_status==='verified'?'✓ Verified':sellerProfile?.verification_status==='pending'?'Pending':'Free seller')+'</span></div>'+
       '<form id="seller-profile-form" class="seller-form">'+
         '<label>Store name<input required name="storeName" maxlength="120" value="'+escapeHtml(sellerProfile?.store_name||'')+'" placeholder="e.g. Bahl Gadgets"></label>'+
         '<div class="two-col"><label>Phone<input name="phone" autocomplete="tel" maxlength="40" value="'+escapeHtml(sellerProfile?.phone||'')+'" placeholder="0801 234 5678"></label><label>Location<input name="location" maxlength="120" value="'+escapeHtml(sellerProfile?.location||'')+'" placeholder="Abuja, FCT"></label></div>'+
@@ -232,7 +233,7 @@ function renderSellerPage(){
         '<label id="existing-images-wrap" class="hidden">Current image URLs<textarea name="images" rows="3" placeholder="Keep these lines to keep existing photos."></textarea></label>'+
         '<div id="listing-preview" class="image-preview-grid"></div>'+
         '<p id="seller-message" class="seller-message" role="alert"></p>'+
-        '<button class="btn btn-primary full" type="submit">Publish listing →</button>'+
+        '<button class="btn btn-primary full" type="submit" '+(canPublish?'':'disabled')+'>Publish listing →</button><small class="listing-gate-note">'+(canPublish?'Your identity is verified. You can publish listings.':'🔒 Verify your seller identity first. Bagged only allows verified sellers to publish listings.')+'</small>'+
       '</form>'+
     '</section>'+
   '</div>'+
