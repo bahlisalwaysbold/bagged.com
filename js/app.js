@@ -1,3 +1,63 @@
+const BAGGED_PRIVACY_CONSENT_KEY='bagged_privacy_consent';
+const BAGGED_VISITOR_COOKIE='bagged_visitor_id';
+
+function baggedCookieGet(name){
+  const match=document.cookie.split('; ').find(row=>row.startsWith(name+'='));
+  return match?decodeURIComponent(match.slice(name.length+1)):null;
+}
+function baggedCookieSet(name,value,maxAgeSeconds=31536000){
+  document.cookie=name+'='+encodeURIComponent(value)+'; Max-Age='+maxAgeSeconds+'; Path=/; SameSite=Lax';
+}
+function baggedCookieDelete(name){
+  document.cookie=name+'=; Max-Age=0; Path=/; SameSite=Lax';
+}
+function baggedConsent(){
+  try{return localStorage.getItem(BAGGED_PRIVACY_CONSENT_KEY)||'unknown';}catch{return 'unknown';}
+}
+function baggedSetConsent(value){
+  try{localStorage.setItem(BAGGED_PRIVACY_CONSENT_KEY,value);}catch{}
+  if(value==='accepted'){
+    let visitor=baggedCookieGet(BAGGED_VISITOR_COOKIE);
+    if(!visitor){
+      try{visitor=localStorage.getItem('bagged_visitor_id')||null;}catch{}
+    }
+    if(!visitor)visitor=crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).slice(2));
+    baggedCookieSet(BAGGED_VISITOR_COOKIE,visitor);
+    try{localStorage.setItem('bagged_visitor_id',visitor);}catch{}
+  }else{
+    baggedCookieDelete(BAGGED_VISITOR_COOKIE);
+    try{localStorage.removeItem('bagged_visitor_id');}catch{}
+  }
+  document.getElementById('cookie-consent')?.remove();
+  if(window.BaggedDiscovery)window.BaggedDiscovery.refreshDiscovery?.();
+}
+function showBaggedCookieConsent(){
+  if(baggedConsent()!=='unknown')return;
+  const banner=document.createElement('aside');
+  banner.id='cookie-consent';
+  banner.className='cookie-consent';
+  banner.setAttribute('aria-label','Privacy and personalization settings');
+  banner.innerHTML='<div><strong>🍪 Your Bagged experience.</strong><p>Bagged can use a small first-party identifier to remember your activity and personalize recommendations. It is optional.</p></div><div class="cookie-consent-actions"><button type="button" class="btn btn-dark" data-cookie-decline>No thanks</button><button type="button" class="btn btn-primary" data-cookie-accept>Allow personalization</button></div>';
+  document.body.appendChild(banner);
+  banner.querySelector('[data-cookie-accept]').onclick=()=>baggedSetConsent('accepted');
+  banner.querySelector('[data-cookie-decline]').onclick=()=>baggedSetConsent('declined');
+}
+
+window.BaggedPrivacy={
+  consent:baggedConsent,
+  hasConsent:()=>baggedConsent()==='accepted',
+  setConsent:baggedSetConsent,
+  getVisitorId:()=>{
+    if(baggedConsent()!=='accepted')return null;
+    let visitor=baggedCookieGet(BAGGED_VISITOR_COOKIE);
+    if(!visitor){
+      try{visitor=localStorage.getItem('bagged_visitor_id')||null;}catch{}
+    }
+    if(visitor)baggedCookieSet(BAGGED_VISITOR_COOKIE,visitor);
+    return visitor;
+  }
+};
+
 const MARKETPLACE_ROLES=['buyer','seller','both'];
 
 async function getMarketplaceRole(){
@@ -102,7 +162,7 @@ function productCard(p){
   const sellerLabel=seller ? (seller.verified?'✓ '+seller.name:seller.name) : 'Bagged Store';
   return `<article class="product-card"><a class="product-image" href="product.html?id=${encodeURIComponent(p.id)}">${renderProductImage(p.image)}${p.badge?`<span class="pill">${escapeHtml(p.badge)}</span>`:''}${p.stock<=2?'<span class="low-stock">Low stock</span>':''}</a><div class="product-info"><div class="mini-meta"><span>${escapeHtml(p.category||'General')}</span><span>${escapeHtml(p.condition||'New')}</span></div><h3><a href="product.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a></h3><p class="seller-mini">${escapeHtml(sellerLabel)}</p><div class="price-row"><strong>${p.isSale?`<del>${formatNaira(p.regularPrice)}</del> `:''}${formatNaira(p.price)}</strong><button class="mini-bag" onclick="addToCart('${String(p.id).replace(/'/g,"\\'")}')">Bag it</button></div></div></article>`;
 }
-function setupPage(){ updateBagCount(); document.querySelectorAll('.menu-btn').forEach(btn=>btn.addEventListener('click',()=>document.querySelector('.desktop-nav')?.classList.toggle('open'))); setupMarketplaceRoleUI(); }
+function setupPage(){ updateBagCount(); document.querySelectorAll('.menu-btn').forEach(btn=>btn.addEventListener('click',()=>document.querySelector('.desktop-nav')?.classList.toggle('open'))); setupMarketplaceRoleUI(); showBaggedCookieConsent(); }
 function finishLoading(){ const loader=document.getElementById('loader'); if(loader) loader.classList.add('hide'); }
 function showCatalogError(error){ document.querySelectorAll('#home-categories,#featured-products,#shop-results,#product-root,#cart-root,#checkout-summary').forEach(root=>{if(root) root.innerHTML=`<div class="catalog-message" role="alert">${escapeHtml(error.message||'The shop is temporarily unavailable. Please try again.')}</div>`;}); }
 window.addEventListener('bagged:cart-change', updateBagCount);
