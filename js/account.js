@@ -24,7 +24,7 @@ function renderAccount(){
   }
   const notice=accountNotice?`<p class="auth-message ${accountNoticeType==='alert'?'form-error':'catalog-message'}" role="${accountNoticeType}" aria-live="polite">${escapeHtml(accountNotice)}</p>`:'';
   if(accountUser&&accountView!=='update-password'){
-    accountRoot.innerHTML=`<section class="auth-panel account-summary"><span class="eyebrow">SIGNED IN</span><h2>${escapeHtml(customerName(accountUser))}</h2><p class="account-email">${escapeHtml(accountUser.email||'')}</p>${notice}<button id="sign-out" class="btn btn-secondary" type="button">Sign out</button></section>`;
+    accountRoot.innerHTML=`<section class="auth-panel account-summary"><span class="eyebrow">SIGNED IN</span><h2>${escapeHtml(customerName(accountUser))}</h2><p class="account-email">${escapeHtml(accountUser.email||'')}</p>${notice}<a class="btn btn-primary full" href="seller.html">Sell something on Bagged →</a><button id="sign-out" class="btn btn-secondary full" type="button">Sign out</button></section>`;
     document.getElementById('sign-out').addEventListener('click',signOut);
     return;
   }
