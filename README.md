@@ -90,10 +90,25 @@ Open `http://localhost:8000`. Alternatively, open this folder in VS Code and sta
 Basic seller listings are intentionally free. The application UI is prepared for the next revenue layers: paid listing boosts, Pro/Business seller plans, and transaction/service fees once Bagged controls secure checkout and delivery. Those paid flows are not falsely activated yet; payment processing still needs a provider integration and a payout/reconciliation workflow.
 
 ## Deployment
+Deploy the contents of this folder to Vercel (recommended for the Smile ID serverless endpoints). Static hosting also works for the storefront, but the `/api/smile/*` endpoints must be deployed on a serverless Node runtime.
 
-Deploy the contents of this folder to any static host (for example, Netlify, Vercel, or Cloudflare Pages). Set the site's root/output directory to this folder, configure your Supabase URL and publishable key in `js/config.js`, and allow the deployed origin in Supabase **Authentication → URL Configuration**. Apply the migration and create an admin before expecting catalog or dashboard data.
+For the Smile ID seller-KYC integration, add these **server-side** environment variables in Vercel:
 
-Customer sign-up/sign-in and password recovery use Supabase Auth; account display names are stored in Auth user metadata, not a separate profile table. Google OAuth requires provider setup in Supabase and Google Cloud Console. Checkout currently creates pay-on-delivery orders only; card processing, delivery pricing, and refunds are not implemented.
+```text
+SUPABASE_URL=https://sqaiwhbzsczamdbpowig.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<Supabase service-role key>
+SMILE_PARTNER_ID=<Smile ID partner ID>
+SMILE_API_KEY=<Smile ID API key>
+SMILE_SERVER=sandbox
+SMILE_CALLBACK_URL=https://baggedcom.vercel.app/api/smile/callback
+```
+
+Never put `SUPABASE_SERVICE_ROLE_KEY` or `SMILE_API_KEY` in `js/config.js`, HTML, browser JavaScript, or public GitHub files. Smile ID's Partner ID may be returned to the browser because it is an identifier, but the API key stays server-side.
+
+The browser loads Smile ID's hosted Web Integration from `https://cdn.smileidentity.com/inline/v2/js/script.min.js`. The seller opens the widget after Bagged creates a server-side web token. Smile ID posts asynchronous results to the callback endpoint; Bagged verifies the callback signature and only marks a seller verified after the required KYC results pass.
+
+For launch, start in Smile ID **sandbox**. After the Smile ID account/product is enabled and tested, change `SMILE_SERVER` to `production` and use the production API key. Production KYC pricing is controlled by Smile ID; the sandbox account is the safe place to validate the integration before live charges.
+
 
 ## Data and security
 
