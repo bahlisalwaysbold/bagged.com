@@ -32,6 +32,13 @@ function mapProduct(row){
     isSold: row.is_sold,
     status: row.status,
     isActive: row.is_active !== false,
+    sellerId: row.seller_id || null,
+    seller: row.seller_profiles ? {
+      name: row.seller_profiles.store_name || 'Bagged seller',
+      phone: row.seller_profiles.phone || '',
+      location: row.seller_profiles.location || '',
+      verified: Boolean(row.seller_profiles.verified)
+    } : null,
     createdAt: row.created_at
   };
 }
@@ -45,7 +52,7 @@ async function loadCatalog({ admin = false, refresh = false } = {}){
     const [categoryResult, productResult] = await Promise.all([
       supabaseClient.from('categories').select('id,name,icon,description').order('name'),
       supabaseClient.from('products')
-        .select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at')
+        .select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id,seller_profiles(store_name,phone,location,verified)')
         .order('created_at', { ascending: false })
     ]);
     if(categoryResult.error) throw categoryResult.error;
@@ -89,6 +96,26 @@ async function uploadProductImages(files){
       cacheControl: '31536000',
       contentType: file.type,
       upsert: false
+    });
+    if(error) throw error;
+    uploaded.push(supabaseClient.storage.from('product-images').getPublicUrl(path).data.publicUrl);
+  }
+  return uploaded;
+}
+
+async function uploadSellerProductImages(files,userId){
+  const uploaded = [];
+  const folder = String(userId || '').trim();
+  if(!folder) throw new Error('Your seller account could not be verified.');
+  for(const file of files.filter(selected=>selected.name).slice(0,6)){
+    if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) throw new Error(file.name+' is not a supported image type.');
+    if(file.size>10485760) throw new Error(file.name+' exceeds the 10 MB image limit.');
+    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'-');
+    const path=folder+'/'+crypto.randomUUID()+'/'+safeName;
+    const {error}=await supabaseClient.storage.from('product-images').upload(path,file,{
+      cacheControl:'31536000',
+      contentType:file.type,
+      upsert:false
     });
     if(error) throw error;
     uploaded.push(supabaseClient.storage.from('product-images').getPublicUrl(path).data.publicUrl);
