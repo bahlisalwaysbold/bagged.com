@@ -3,6 +3,8 @@ let sellerUser=null;
 let sellerProfile=null;
 let sellerProducts=[];
 let sellerCategories=[];
+let sellerBoostPlans=[];
+let sellerBoostOrders=[];
 
 function sellerMessage(message,type='status'){
   const box=document.getElementById('seller-message');
@@ -55,9 +57,9 @@ function renderSellerPage(){
     '</section>'+
   '</div>'+
   '<section class="seller-panel seller-listings"><div class="panel-heading"><div><span class="eyebrow">YOUR LISTINGS</span><h2>What you’re selling.</h2></div><strong>'+sellerProducts.length+' listing'+(sellerProducts.length===1?'':'s')+'</strong></div>'+
-  (sellerProducts.length?sellerProducts.map(product=>'<article class="seller-listing"><div class="seller-listing-image">'+renderProductImage(product.image,'admin-product-image')+'</div><div class="seller-listing-main"><div class="mini-meta"><span>'+escapeHtml(product.category)+'</span><span>'+escapeHtml(product.condition)+'</span></div><h3>'+escapeHtml(product.name)+'</h3><strong>'+formatNaira(product.price)+'</strong><p>'+product.stock+' in stock · '+(product.isActive&&!product.isSold?'Live':'Not live')+'</p></div><div class="seller-listing-actions"><button class="btn btn-secondary" type="button" data-edit-listing="'+product.id+'">Edit</button><button class="btn btn-dark" type="button" data-toggle-listing="'+product.id+'">'+(product.isActive&&!product.isSold?'Hide':'Show')+'</button><button class="table-btn danger" type="button" data-delete-listing="'+product.id+'">Delete</button></div></article>').join(''):'<div class="seller-empty"><div>🛍️</div><h3>Your first listing goes here.</h3><p>Post something and it will appear in the Bagged marketplace.</p></div>')+
+  (sellerProducts.length?sellerProducts.map(product=>'<article class="seller-listing"><div class="seller-listing-image">'+renderProductImage(product.image,'admin-product-image')+'</div><div class="seller-listing-main"><div class="mini-meta"><span>'+escapeHtml(product.category)+'</span><span>'+escapeHtml(product.condition)+'</span></div><h3>'+escapeHtml(product.name)+'</h3><strong>'+formatNaira(product.price)+'</strong><p>'+product.stock+' in stock · '+(product.isActive&&!product.isSold?'Live':'Not live')+'</p></div><div class="seller-listing-actions"><button class="btn btn-secondary" type="button" data-edit-listing="'+product.id+'">Edit</button><button class="btn btn-dark" type="button" data-toggle-listing="'+product.id+'">'+(product.isActive&&!product.isSold?'Hide':'Show')+'</button><button class="btn btn-primary" type="button" data-boost-listing="'+product.id+'">🚀 Boost</button><button class="table-btn danger" type="button" data-delete-listing="'+product.id+'">Delete</button></div></article>').join(''):'<div class="seller-empty"><div>🛍️</div><h3>Your first listing goes here.</h3><p>Post something and it will appear in the Bagged marketplace.</p></div>')+
   '</section>'+
-  '<section class="seller-growth"><span class="eyebrow">NEXT LEVEL</span><h2>The marketplace gets smarter later.</h2><div class="seller-growth-grid"><div><b>🚀 Boosts</b><span>Pay to push a listing higher in search.</span></div><div><b>🏪 Pro stores</b><span>Give serious sellers their own storefront tools.</span></div><div><b>🛡️ Secure checkout</b><span>Bagged can earn a service fee when we handle the transaction.</span></div></div></section>';
+  '<section class="seller-growth seller-boost-section"><span class="eyebrow">GET SEEN</span><h2>Put your listing in the spotlight.</h2><p class="boost-lead">Boosts buy premium visibility. Your request is recorded here, then Bagged confirms payment and activates the placement.</p><div class="boost-plan-grid">'+sellerBoostPlans.map(plan=>'<div class="boost-plan"><span class="boost-plan-badge">🚀 '+escapeHtml(plan.name)+'</span><strong>'+formatNaira(plan.price)+'</strong><b>'+plan.days+' days</b><span>'+escapeHtml(plan.description||'Premium Featured placement')+'</span></div>').join('')+'</div></section>';
 
   bindSellerForms();
 }
@@ -72,6 +74,7 @@ function bindSellerForms(){
   sellerRoot.querySelectorAll('[data-edit-listing]').forEach(button=>button.addEventListener('click',()=>editListing(button.dataset.editListing)));
   sellerRoot.querySelectorAll('[data-toggle-listing]').forEach(button=>button.addEventListener('click',()=>toggleListing(button.dataset.toggleListing)));
   sellerRoot.querySelectorAll('[data-delete-listing]').forEach(button=>button.addEventListener('click',()=>deleteListing(button.dataset.deleteListing)));
+  sellerRoot.querySelectorAll('[data-boost-listing]').forEach(button=>button.addEventListener('click',()=>openBoostModal(button.dataset.boostListing)));
   renderListingPreview(listingForm);
 }
 
@@ -91,15 +94,21 @@ async function loadSellerData(){
     sellerRoot.innerHTML='<section class="seller-login"><span class="eyebrow">SELL ON BAGGED</span><h2>Sign in before you sell.</h2><p>Create a free Bagged account, then come back here to post listings.</p><a class="btn btn-primary" href="account.html?mode=signup">Create seller account →</a><a class="btn btn-secondary" href="account.html">I already have an account</a></section>';
     return;
   }
-  const [profileResult,productsResult,categoryResult]=await Promise.all([
+  const [profileResult,productsResult,categoryResult,boostPlanResult,boostOrderResult]=await Promise.all([
     supabaseClient.from('seller_profiles').select('*').eq('user_id',sellerUser.id).maybeSingle(),
-    supabaseClient.from('products').select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}),
-    supabaseClient.from('categories').select('id,name,icon,description').order('name')
+    supabaseClient.from('products').select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id,boosted_until,boost_priority').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}),
+    supabaseClient.from('categories').select('id,name,icon,description').order('name'),
+    supabaseClient.from('boost_plans').select('id,name,days,price,priority,description').eq('is_active',true).order('price'),
+    supabaseClient.from('boost_orders').select('id,product_id,plan_id,amount,status,payment_reference,activated_at,created_at,boost_plans(name,days,priority,description)').eq('seller_id',sellerUser.id).order('created_at',{ascending:false})
   ]);
   if(profileResult.error)throw profileResult.error;
   if(productsResult.error)throw productsResult.error;
   if(categoryResult.error)throw categoryResult.error;
+  if(boostPlanResult.error)throw boostPlanResult.error;
+  if(boostOrderResult.error)throw boostOrderResult.error;
   sellerProfile=profileResult.data||{store_name:'',phone:'',location:'',bio:'',verified:false,plan:'free'};
+  sellerBoostPlans=boostPlanResult.data||[];
+  sellerBoostOrders=boostOrderResult.data||[];
   sellerProducts=(productsResult.data||[]).map(mapProduct);
   sellerCategories=(categoryResult.data||[]).map(mapCategory);
   renderSellerPage();
@@ -170,9 +179,10 @@ async function publishListing(event){
 }
 
 async function refreshSellerData(){
-  const {data,error}=await supabaseClient.from('products').select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id').eq('seller_id',sellerUser.id).order('created_at',{ascending:false});
+  const {data,error}=await supabaseClient.from('products').select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id,boosted_until,boost_priority').eq('seller_id',sellerUser.id).order('created_at',{ascending:false});
   if(error)throw error;
   sellerProducts=(data||[]).map(mapProduct);
+  await refreshBoostData();
   const count=sellerRoot.querySelector('.seller-listings .panel-heading strong');
   if(count)count.textContent=sellerProducts.length+' listing'+(sellerProducts.length===1?'':'s');
   renderSellerListingsOnly();
@@ -218,6 +228,51 @@ function resetListingForm(){
   document.getElementById('listing-heading').textContent='Post something.';
   document.getElementById('existing-images-wrap').classList.add('hidden');
   renderListingPreview(form);
+}
+
+function getBoostOrderForProduct(productId){
+  return sellerBoostOrders.find(order=>order.product_id===productId && order.status==='pending')||null;
+}
+
+function getActiveBoostForProduct(productId){
+  return sellerBoostOrders.find(order=>order.product_id===productId && order.status==='active')||null;
+}
+
+function openBoostModal(productId){
+  const product=sellerProducts.find(item=>item.id===productId);
+  if(!product)return;
+  const pending=getBoostOrderForProduct(productId);
+  const active=getActiveBoostForProduct(productId);
+  const modal=document.createElement('div');
+  modal.className='modal';
+  const planCards=sellerBoostPlans.map(plan=>`<button type="button" class="boost-choice" data-boost-plan="${plan.id}"><span><b>${escapeHtml(plan.name)}</b><small>${plan.days} days · priority ${plan.priority}</small></span><strong>${formatNaira(plan.price)}</strong><span class="boost-choice-copy">${escapeHtml(plan.description||'Premium Featured placement')}</span></button>`).join('');
+  modal.innerHTML=`<div class="modal-card boost-modal-card"><div class="panel-head"><div><span class="eyebrow">BOOST LISTING</span><h2>${escapeHtml(product.name)}</h2></div><button type="button" class="close-modal" aria-label="Close">×</button></div><p class="form-hint">${pending?'A boost request is already awaiting payment confirmation.':active?'This listing is already boosted. A new request will extend its placement after the current boost.':'Choose how long you want premium Featured visibility.'}</p><div class="boost-current">${active?'<b>🔥 Active until '+new Date(product.boostedUntil).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})+'</b>':'No active boost'}</div><div class="boost-choice-grid">${planCards||'<p>No boost packages are available right now.</p>'}</div><p class="form-hint">Bagged records the request here. Payment is confirmed separately by the Bagged admin until online payments are connected.</p><p class="form-error boost-error" role="alert"></p></div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.close-modal').onclick=()=>modal.remove();
+  modal.querySelectorAll('[data-boost-plan]').forEach(button=>button.addEventListener('click',()=>requestBoost(product.id,button.dataset.boostPlan,modal)));
+}
+
+async function requestBoost(productId,planId,modal){
+  const button=modal.querySelector('[data-boost-plan="'+planId+'"]');
+  const errorBox=modal.querySelector('.boost-error');
+  if(button)button.disabled=true;
+  if(errorBox)errorBox.textContent='';
+  try{
+    const {data,error}=await supabaseClient.rpc('create_boost_request',{p_product_id:productId,p_plan_id:planId});
+    if(error)throw error;
+    showToast('Boost request created. 🚀');
+    modal.remove();
+    await refreshSellerData();
+  }catch(error){
+    if(errorBox)errorBox.textContent=error.message||'Could not create the boost request.';
+    if(button)button.disabled=false;
+  }
+}
+
+async function refreshBoostData(){
+  const {data,error}=await supabaseClient.from('boost_orders').select('id,product_id,plan_id,amount,status,payment_reference,activated_at,created_at,boost_plans(name,days,priority,description)').eq('seller_id',sellerUser.id).order('created_at',{ascending:false});
+  if(error)throw error;
+  sellerBoostOrders=data||[];
 }
 
 async function toggleListing(id){
