@@ -82,6 +82,7 @@ function setupSellerNotificationUI(){
   const button=document.getElementById('seller-notification-btn');
   const panel=document.getElementById('seller-notifications-panel');
   if(!button||!panel||button.dataset.bound)return;
+  button.classList.remove('hidden');
   button.dataset.bound='true';
   button.addEventListener('click',event=>{
     event.stopPropagation();
