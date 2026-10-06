@@ -1,3 +1,84 @@
+const MARKETPLACE_ROLES=['buyer','seller','both'];
+
+async function getMarketplaceRole(){
+  if(!window.supabaseClient)return 'buyer';
+  try{
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    if(!session?.user)return 'buyer';
+    const {data,error}=await supabaseClient.from('marketplace_preferences').select('role').eq('user_id',session.user.id).maybeSingle();
+    if(error)throw error;
+    return data?.role || session.user.user_metadata?.marketplace_role || 'buyer';
+  }catch(error){
+    return 'buyer';
+  }
+}
+
+async function setMarketplaceRole(role){
+  const normalized=String(role||'').toLowerCase();
+  if(!MARKETPLACE_ROLES.includes(normalized))throw new Error('Choose buyer, seller, or both.');
+  const {data,error}=await supabaseClient.rpc('set_marketplace_role',{p_role:normalized});
+  if(error)throw error;
+  try{
+    await supabaseClient.auth.updateUser({data:{marketplace_role:normalized}});
+  }catch{}
+  document.body.dataset.marketplaceRole=normalized;
+  applyMarketplaceRoleUI(normalized);
+  return data||normalized;
+}
+
+function applyMarketplaceRoleUI(role){
+  const currentRole=MARKETPLACE_ROLES.includes(role)?role:'buyer';
+  document.body.dataset.marketplaceRole=currentRole;
+
+  const sellerVisible=currentRole==='seller'||currentRole==='both';
+  document.querySelectorAll('.role-seller-tools').forEach(el=>{
+    el.classList.toggle('role-hidden',!sellerVisible);
+    el.setAttribute('aria-hidden',sellerVisible?'false':'true');
+  });
+
+  if(currentRole==='buyer' && !/seller\.html$/i.test(location.pathname)){
+    document.querySelectorAll('.seller-only-ui').forEach(el=>el.classList.add('role-hidden'));
+  }else{
+    document.querySelectorAll('.seller-only-ui').forEach(el=>el.classList.remove('role-hidden'));
+  }
+
+  const hero=document.querySelector('.marketplace-hero');
+  if(hero){
+    const eyebrow=hero.querySelector('.eyebrow');
+    const title=hero.querySelector('h1');
+    const copy=hero.querySelector('.hero-copy>p');
+    if(currentRole==='buyer'){
+      if(eyebrow)eyebrow.textContent='BUY · DISCOVER';
+      if(title)title.innerHTML='Find what you want.<br><span>Bag the deal.</span>';
+      if(copy)copy.textContent='Discover phones, laptops, furniture, fashion, cars, services and everything else people are putting on Bagged.';
+    }else if(currentRole==='seller'){
+      if(eyebrow)eyebrow.textContent='SELL · GROW · DISCOVER';
+      if(title)title.innerHTML='Got something?<br><span>Bag it.</span>';
+      if(copy)copy.textContent='Put your products in front of Bagged buyers, learn what people want and grow your listings with premium visibility.';
+    }else{
+      if(eyebrow)eyebrow.textContent='BUY · SELL · DISCOVER';
+      if(title)title.innerHTML='Buy anything.<br><span>Sell anything.</span>';
+      if(copy)copy.textContent='Bagged is the marketplace for the stuff people actually want — and the place to put your own products in front of buyers.';
+    }
+
+    const heroSell=hero.querySelector('.role-seller-tools');
+    if(heroSell)heroSell.textContent=currentRole==='seller'?'Post a listing →':'Sell something free';
+  }
+
+  const buyerSteps=document.getElementById('buyer-flow-section');
+  if(buyerSteps)buyerSteps.classList.toggle('role-buyer-visible',currentRole!=='seller');
+
+  document.querySelectorAll('[data-marketplace-role-link]').forEach(el=>{
+    const target=el.dataset.marketplaceRoleLink;
+    if(target==='seller')el.href='seller.html';
+  });
+}
+
+async function setupMarketplaceRoleUI(){
+  const role=await getMarketplaceRole();
+  applyMarketplaceRoleUI(role);
+  return role;
+}
 const formatNaira = n => '₦' + Number(n).toLocaleString('en-NG');
 const getCart = () => { try { return JSON.parse(localStorage.getItem('bagged_cart') || '[]'); } catch { return []; } };
 const setCart = cart => { localStorage.setItem('bagged_cart', JSON.stringify(cart)); updateBagCount(); window.dispatchEvent(new Event('bagged:cart-change')); };
@@ -16,7 +97,7 @@ function productCard(p){
   const sellerLabel=seller ? (seller.verified?'✓ '+seller.name:seller.name) : 'Bagged Store';
   return `<article class="product-card"><a class="product-image" href="product.html?id=${encodeURIComponent(p.id)}">${renderProductImage(p.image)}${p.badge?`<span class="pill">${escapeHtml(p.badge)}</span>`:''}${p.stock<=2?'<span class="low-stock">Low stock</span>':''}</a><div class="product-info"><div class="mini-meta"><span>${escapeHtml(p.category||'General')}</span><span>${escapeHtml(p.condition||'New')}</span></div><h3><a href="product.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a></h3><p class="seller-mini">${escapeHtml(sellerLabel)}</p><div class="price-row"><strong>${p.isSale?`<del>${formatNaira(p.regularPrice)}</del> `:''}${formatNaira(p.price)}</strong><button class="mini-bag" onclick="addToCart('${String(p.id).replace(/'/g,"\\'")}')">Bag it</button></div></div></article>`;
 }
-function setupPage(){ updateBagCount(); document.querySelectorAll('.menu-btn').forEach(btn=>btn.addEventListener('click',()=>document.querySelector('.desktop-nav')?.classList.toggle('open'))); }
+function setupPage(){ updateBagCount(); document.querySelectorAll('.menu-btn').forEach(btn=>btn.addEventListener('click',()=>document.querySelector('.desktop-nav')?.classList.toggle('open'))); setupMarketplaceRoleUI(); }
 function finishLoading(){ const loader=document.getElementById('loader'); if(loader) loader.classList.add('hide'); }
 function showCatalogError(error){ document.querySelectorAll('#home-categories,#featured-products,#shop-results,#product-root,#cart-root,#checkout-summary').forEach(root=>{if(root) root.innerHTML=`<div class="catalog-message" role="alert">${escapeHtml(error.message||'The shop is temporarily unavailable. Please try again.')}</div>`;}); }
 window.addEventListener('bagged:cart-change', updateBagCount);
