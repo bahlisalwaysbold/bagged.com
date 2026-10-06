@@ -72,7 +72,7 @@ function renderAccount(){
     bindViewButtons();
     return;
   }
-  accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">WELCOME BACK</span><h2>Sign in to Bagged.</h2><p>Or keep going as a guest. No account is required to shop.</p>${notice}<form id="signin-form"><label>Email<input required type="email" name="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input required type="password" name="password" autocomplete="current-password" placeholder="Your password"></label><button class="btn btn-primary full" type="submit">Sign in</button></form><button class="auth-link forgot-link" type="button" data-view="forgot">Forgot password?</button><div class="auth-divider"><span>or</span></div><button class="google-button" type="button" data-google><img src="assets/google-g.svg" alt="" aria-hidden="true"><span data-google-label>Continue with Google</span></button><p class="auth-switch">New to Bagged? <button class="auth-link" type="button" data-view="signup">Create an account</button></p></section>`;
+  accountRoot.innerHTML=`<section class="auth-panel"><span class="eyebrow">WELCOME BACK</span><h2>Sign in to Bagged.</h2><p>Sign in or create an account before you bag anything.</p>${notice}<form id="signin-form"><label>Email<input required type="email" name="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input required type="password" name="password" autocomplete="current-password" placeholder="Your password"></label><button class="btn btn-primary full" type="submit">Sign in</button></form><button class="auth-link forgot-link" type="button" data-view="forgot">Forgot password?</button><div class="auth-divider"><span>or</span></div><button class="google-button" type="button" data-google><img src="assets/google-g.svg" alt="" aria-hidden="true"><span data-google-label>Continue with Google</span></button><p class="auth-switch">New to Bagged? <button class="auth-link" type="button" data-view="signup">Create an account</button></p></section>`;
   document.getElementById('signin-form').addEventListener('submit',signIn);
   bindViewButtons();
 }
@@ -166,7 +166,7 @@ async function signUp(event){
     const {data,error}=await supabaseClient.auth.signUp({
       email:String(values.get('email')).trim(),
       password:String(values.get('password')),
-      options:{data:{full_name:String(values.get('name')).trim(),marketplace_role:accountMarketplaceRole},emailRedirectTo:accountRedirectUrl()}
+      options:{data:{full_name:String(values.get('name')).trim(),marketplace_role:accountMarketplaceRole},emailRedirectTo:accountOAuthRedirectUrl()}
     });
     if(error)throw error;
     if(data.session){accountUser=data.user;await ensureAccountMarketplaceRole();if(accountAfterAuth())return;accountNotice='Your email is verified. Welcome to Bagged.';accountView='signin';renderAccount();}
