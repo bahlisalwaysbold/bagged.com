@@ -1,5 +1,6 @@
-const params=new URLSearchParams(location.search); const preCat=params.get('category')||'';
+const params=new URLSearchParams(location.search); const preCat=params.get('category')||''; const preSearch=params.get('search')||'';
 const search=document.getElementById('search'), category=document.getElementById('category'), sort=document.getElementById('sort'), results=document.getElementById('shop-results'), empty=document.getElementById('empty-state');
+if(preSearch) search.value=preSearch;
 
 function populateCategories(){
   const cats=getCategories();
@@ -23,7 +24,14 @@ document.addEventListener('DOMContentLoaded',async()=>{
   try{
     await loadCatalog();
     populateCategories();
-    [search,category,sort].forEach(el=>el.addEventListener('input',render));
+    let searchTimer;
+search.addEventListener('input',()=>{
+  render();
+  clearTimeout(searchTimer);
+  const value=search.value.trim();
+  searchTimer=setTimeout(()=>window.BaggedDiscovery?.trackMarketplaceEvent('search',{searchTerm:value,throttleValue:value.toLowerCase()}),450);
+});
+[category,sort].forEach(el=>el.addEventListener('input',render));
     document.getElementById('clear-search').addEventListener('click',()=>{search.value='';render()});
     render();
   }catch(error){
