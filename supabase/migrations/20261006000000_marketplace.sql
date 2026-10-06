@@ -327,7 +327,14 @@ $$;
 revoke all on function public.record_marketplace_event(text,text,uuid,uuid,text) from public, anon, authenticated;
 grant execute on function public.record_marketplace_event(text,text,uuid,uuid,text) to anon, authenticated;
 
-create or replace function public.get_marketplace_discovery(p_user_id uuid default null)
+
+drop function if exists public.get_marketplace_discovery(uuid);
+drop function if exists public.get_marketplace_discovery(uuid,text);
+
+create or replace function public.get_marketplace_discovery(
+  p_user_id uuid default null,
+  p_visitor_id text default null
+)
 returns jsonb
 language plpgsql
 stable
@@ -337,28 +344,60 @@ as $$
 declare
   result jsonb;
 begin
-  with recent_events as (
+  with user_category_scores as (
     select
-      e.product_id,
-      e.category_id,
-      e.search_term,
-      e.event_type,
-      e.created_at
+      p.category_id,
+      sum(
+        case e.event_type
+          when 'purchase' then 8
+          when 'cart_add' then 5
+          when 'save' then 4
+          when 'view' then 2
+          else 0
+        end
+      )::numeric as score
     from public.marketplace_events e
-    where e.created_at >= now() - interval '14 days'
+    join public.products p on p.id = e.product_id
+    where e.created_at >= now() - interval '30 days'
       and (
         (p_user_id is not null and e.user_id = p_user_id)
-        or (p_user_id is null and e.visitor_id = '')
+        or
+        (p_user_id is null and p_visitor_id is not null and e.visitor_id = p_visitor_id)
       )
+      and e.event_type in ('view','save','cart_add','purchase')
+    group by p.category_id
+  ),
+  personalized as (
+    select p.id,
+      (
+        coalesce(ucs.score,0)
+        + case when p.boosted_until > now() then 3 else 0 end
+        + greatest(
+            0,
+            14 - extract(epoch from (now() - p.created_at)) / 86400
+          )::numeric
+      ) as score
+    from public.products p
+    left join user_category_scores ucs on ucs.category_id = p.category_id
+    where p.status = 'published'
+      and p.is_active = true
+      and p.is_sold = false
+      and p.stock > 0
+      and (
+        ucs.category_id is not null
+        or not exists (select 1 from user_category_scores)
+      )
+    order by score desc, p.created_at desc
+    limit 12
   ),
   trending_terms as (
-    select lower(e.search_term) as term, count(*)::int as score
+    select lower(trim(e.search_term)) as term, count(*)::int as score
     from public.marketplace_events e
     where e.created_at >= date_trunc('week', now())
       and e.event_type = 'search'
       and e.search_term is not null
       and length(trim(e.search_term)) >= 2
-    group by lower(e.search_term)
+    group by lower(trim(e.search_term))
     order by score desc
     limit 8
   ),
@@ -394,10 +433,16 @@ begin
     limit 12
   )
   select jsonb_build_object(
-    'trending_terms', coalesce((select jsonb_agg(t) from trending_terms t), '[]'::jsonb),
-    'trending_categories', coalesce((select jsonb_agg(tc) from trending_categories tc), '[]'::jsonb),
-    'boosted_ids', coalesce((select jsonb_agg(b.id) from boosted b), '[]'::jsonb),
-    'fresh_ids', coalesce((select jsonb_agg(f.id) from fresh f), '[]'::jsonb)
+    'trending_terms',
+      coalesce((select jsonb_agg(t) from trending_terms t), '[]'::jsonb),
+    'trending_categories',
+      coalesce((select jsonb_agg(tc) from trending_categories tc), '[]'::jsonb),
+    'personalized_ids',
+      coalesce((select jsonb_agg(p.id) from personalized p), '[]'::jsonb),
+    'boosted_ids',
+      coalesce((select jsonb_agg(b.id) from boosted b), '[]'::jsonb),
+    'fresh_ids',
+      coalesce((select jsonb_agg(f.id) from fresh f), '[]'::jsonb)
   )
   into result;
 
@@ -405,5 +450,5 @@ begin
 end;
 $$;
 
-revoke all on function public.get_marketplace_discovery(uuid) from public, anon, authenticated;
-grant execute on function public.get_marketplace_discovery(uuid) to anon, authenticated;
+revoke all on function public.get_marketplace_discovery(uuid,text) from public, anon, authenticated;
+grant execute on function public.get_marketplace_discovery(uuid,text) to public, anon, authenticated;
