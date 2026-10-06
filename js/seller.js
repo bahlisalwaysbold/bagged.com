@@ -236,6 +236,8 @@ function getBoostOrderForProduct(productId){
 }
 
 function getActiveBoostForProduct(productId){
+  const product=sellerProducts.find(item=>item.id===productId);
+  if(!product?.boostedUntil || new Date(product.boostedUntil)<=new Date())return null;
   return sellerBoostOrders.find(order=>order.product_id===productId && order.status==='active')||null;
 }
 
