@@ -173,9 +173,65 @@ function getSavedProducts(){
   return getProducts().filter(product=>saved.has(String(product.id)));
 }
 
+const BAGGED_PENDING_BAG_KEY='bagged_pending_bag_action';
 const setCart = cart => { localStorage.setItem('bagged_cart', JSON.stringify(cart)); updateBagCount(); window.dispatchEvent(new Event('bagged:cart-change')); };
 function updateBagCount(){ const el=document.getElementById('bag-count'); if(el) el.textContent=getCart().reduce((s,i)=>s+i.qty,0); }
-function addToCart(id, qty=1){ const p=getProducts().find(x=>x.id===id); if(!p || p.stock<1){showToast('This item is no longer available.');return;} const cart=getCart(); const item=cart.find(x=>x.id===id); if(item) item.qty=Math.min(item.qty+qty,p.stock); else cart.push({id,qty:Math.min(qty,p.stock)}); setCart(cart); showToast(`${p.name} bagged! 🛍`); }
+function baggedAccountUrl(next){
+  const params=new URLSearchParams({mode:'signin'});
+  if(next)params.set('next',next);
+  return 'account.html?'+params.toString();
+}
+async function requireSignedIn(next){
+  if(!window.supabaseClient){window.location.href=baggedAccountUrl(next);return false;}
+  try{
+    const {data,error}=await supabaseClient.auth.getSession();
+    if(error||!data?.session?.user){
+      window.location.href=baggedAccountUrl(next);
+      return false;
+    }
+    return true;
+  }catch{
+    window.location.href=baggedAccountUrl(next);
+    return false;
+  }
+}
+function storePendingBagAction(id,qty=1){
+  try{localStorage.setItem(BAGGED_PENDING_BAG_KEY,JSON.stringify({id:String(id),qty:Number(qty)||1}));}catch{}
+}
+function clearPendingBagAction(){
+  try{localStorage.removeItem(BAGGED_PENDING_BAG_KEY);}catch{}
+}
+async function completePendingBagAction(){
+  try{
+    const raw=localStorage.getItem(BAGGED_PENDING_BAG_KEY);
+    if(!raw)return false;
+    const pending=JSON.parse(raw);
+    if(!pending?.id){clearPendingBagAction();return false;}
+    clearPendingBagAction();
+    const p=getProducts().find(x=>String(x.id)===String(pending.id));
+    if(!p||p.stock<1){showToast('That item is no longer available.');return false;}
+    const cart=getCart();
+    const qty=Math.max(1,Math.min(Number(pending.qty)||1,p.stock));
+    const item=cart.find(x=>x.id===p.id);
+    if(item)item.qty=Math.min(item.qty+qty,p.stock);
+    else cart.push({id:p.id,qty});
+    setCart(cart);
+    showToast(p.name+' bagged! 🛍');
+    return true;
+  }catch{return false;}
+}
+async function addToCart(id, qty=1){
+  const next=location.pathname.split('/').pop()+(location.search||'');
+  if(!(await requireSignedIn(next))){storePendingBagAction(id,qty);return;}
+  const p=getProducts().find(x=>x.id===id);
+  if(!p || p.stock<1){showToast('This item is no longer available.');return;}
+  const cart=getCart();
+  const item=cart.find(x=>x.id===id);
+  if(item)item.qty=Math.min(item.qty+qty,p.stock);
+  else cart.push({id,qty:Math.min(qty,p.stock)});
+  setCart(cart);
+  showToast(p.name+' bagged! 🛍');
+}
 function removeFromCart(id){setCart(getCart().filter(x=>x.id!==id));}
 function changeQty(id, delta){ const cart=getCart(); const item=cart.find(x=>x.id===id); const p=getProducts().find(x=>x.id===id); if(!item||!p) return; item.qty=Math.max(1,Math.min(item.qty+delta,p.stock)); setCart(cart); }
 function showToast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); requestAnimationFrame(()=>t.classList.add('show')); setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),250)},2200); }
