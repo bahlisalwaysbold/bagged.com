@@ -256,7 +256,7 @@ function initializeAccount(){
   Promise.race([
     Promise.resolve().then(()=>supabaseClient.auth.getSession()).then(result=>({result})),
     timeout
-  ]).then(outcome=>{
+  ]).then(async outcome=>{
     accountSessionPending=false;
     accountReady=true;
     if(outcome.timedOut){
