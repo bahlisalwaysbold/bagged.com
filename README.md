@@ -1,6 +1,6 @@
-# Bagged Store
+# Bagged Marketplace
 
-Bagged is a responsive, single-store storefront backed by Supabase. The existing Bagged pages and visual design are retained. Catalog data, images, admin access, orders, and inventory live in Supabase; the guest shopping bag stays in the browser.
+Bagged is a responsive multi-vendor marketplace backed by Supabase. Customers can browse and buy listings, while authenticated sellers can create a seller profile, publish listings, upload photos, manage stock and hide/delete their own listings. The guest shopping bag stays in the browser.
 
 ## Requirements
 
@@ -15,9 +15,9 @@ The browser uses the official Supabase JavaScript client from a pinned CDN relea
 
 To change projects, update `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `js/config.js`.
 
-## Customer authentication
+## Customer and seller authentication
 
-Customer accounts use Supabase Auth email/password sign-up and sign-in. Email verification is enabled in the current project settings. The Supabase client persists the session; the account page reads the display name from Auth user metadata. No customer profile table or custom password storage is used, and customer sign-up does not add anyone to `admin_users`. Guest checkout remains available without signing in.
+Customer accounts and seller accounts use Supabase Auth email/password sign-up and sign-in. Email verification is enabled in the current project settings. The Supabase client persists the session; the account page reads the display name from Auth user metadata. No customer profile table or custom password storage is used, and customer sign-up does not add anyone to `admin_users`. Guest checkout remains available without signing in.
 
 In Supabase **Authentication → URL Configuration**, set the Site URL to `https://baggedcom.vercel.app` and add these Redirect URLs:
 
@@ -40,16 +40,16 @@ For a new Supabase project, configure Google OAuth as follows. The current Bagge
 
 The account page checks whether Google is enabled and shows a readable message if it is not. Production OAuth was confirmed to redirect to Google's sign-in page with `https://baggedcom.vercel.app/account.html` as the return URL; completing consent requires the customer's Google account.
 
-## Database migration
+## Marketplace database migration
 
-The initial migration creates `categories`, `products`, `orders`, `order_items`, and `admin_users`; the `product-images` Storage bucket; RLS/storage policies; and the atomic `create_order` RPC. The shop-management migration adds category icons/descriptions, product active state and canonical `image_urls`, ensures secure Storage policies, and enables catalog Realtime updates.
+The initial migrations create the storefront tables, Storage bucket, RLS policies and atomic `create_order` RPC. The shop-management migration adds category/product management fields. The `20261006000000_marketplace.sql` migration adds seller profiles, seller-owned products, seller photo uploads, multi-seller order snapshots and broad marketplace categories.
 The initial migration creates `categories`, `products`, `orders`, `order_items`, and `admin_users`; the `product-images` Storage bucket; RLS/storage policies; and the atomic `create_order` RPC. The shop-management migration adds category icons/descriptions, product active state and canonical `image_urls`, ensures secure Storage policies, and enables catalog Realtime updates. It also avoids resetting existing admin-controlled active values on migration reruns.
 
 The Supabase CLI is not installed in the implementation environment, and only the publishable key was supplied. A publishable key cannot apply DDL or link a project, so pending migrations must be applied by an authorized project owner. The live project currently has the five base tables but no public catalog rows and no `product-images` bucket; apply the shop-management migration before using the expanded admin UI.
 
 Apply it once using either method:
 
-1. In Supabase Dashboard, open **SQL Editor**, create a query, paste the contents of each unapplied migration in timestamp order, and run it. For the current installation, apply `supabase/migrations/20261003000000_shop_management.sql` after the existing initial migration.
+1. In Supabase Dashboard, open **SQL Editor**, create a query, paste the contents of each unapplied migration in timestamp order, and run it. For the current installation, apply `supabase/migrations/20261003000000_shop_management.sql` and then `supabase/migrations/20261006000000_marketplace.sql` after the existing initial migration.
 2. Or install the Supabase CLI on Windows with Scoop, then run these commands from the project directory:
 
 ```powershell
@@ -85,6 +85,10 @@ py -m http.server 8000
 
 Open `http://localhost:8000`. Alternatively, open this folder in VS Code and start Live Server. Do not open the HTML pages directly as `file://` URLs; Auth session persistence and browser requests need an HTTP origin.
 
+## Marketplace monetization roadmap
+
+Basic seller listings are intentionally free. The application UI is prepared for the next revenue layers: paid listing boosts, Pro/Business seller plans, and transaction/service fees once Bagged controls secure checkout and delivery. Those paid flows are not falsely activated yet; payment processing still needs a provider integration and a payout/reconciliation workflow.
+
 ## Deployment
 
 Deploy the contents of this folder to any static host (for example, Netlify, Vercel, or Cloudflare Pages). Set the site's root/output directory to this folder, configure your Supabase URL and publishable key in `js/config.js`, and allow the deployed origin in Supabase **Authentication → URL Configuration**. Apply the migration and create an admin before expecting catalog or dashboard data.
@@ -94,10 +98,13 @@ Customer sign-up/sign-in and password recovery use Supabase Auth; account displa
 ## Data and security
 
 - `categories`: open category names, publicly readable; admin writes only.
-- `products`: descriptions, condition, base/sale pricing, stock, images, feature/sale/sold flags, and publication status. Public reads are limited to published, in-stock, not-sold products.
+- `products`: descriptions, condition, base/sale pricing, stock, images, feature/sale/sold flags, publication status and optional `seller_id` ownership. Public reads are limited to published, in-stock, not-sold products.
 - `orders` and `order_items`: guest delivery details and purchased item/price snapshots; admin read/write only.
 - `admin_users`: Auth user IDs allowed to administer the store; each admin can read only their own membership row.
 - `create_order`: locks current product rows, validates availability and quantities, calculates server-side prices/totals, stores order/items, and decrements stock in one transaction.
 - `bagged_cart`: the only app data retained in local storage; it contains product IDs and quantities, not authoritative prices or order records.
 
 Order delivery details are stored in the database for fulfillment. Do not collect or add customer tracking cookies without a clear requirement.
+
+- `seller_profiles`: seller store name, contact details, location, verification state and plan tier.
+- Seller Storage policies scope uploads/updates/deletes to the authenticated seller's own folder.
