@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Bagged — Shop good stuff, sorted." />
-  <title>Bagged — Good stuff, sorted.</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Bagged — Buy anything. Sell anything. Get Bagged.">
+  <title>Bagged — Buy. Sell. Get Bagged.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="marketplace.css">
 </head>
 <body>
   <div id="loader" class="loader" aria-hidden="true"><div class="bag-loader">🛍</div><span>Bagging your experience…</span></div>
   <header class="site-header">
-    <a class="brand" href="index.html" aria-label="Bagged home"><img src="assets/logo.svg" alt="Bagged" /></a>
+    <a class="brand" href="index.html" aria-label="Bagged home"><img src="assets/logo.svg" alt="Bagged"></a>
     <nav class="desktop-nav" aria-label="Main navigation">
-      <a href="index.html" class="active">Home</a><a href="shop.html">Shop everything</a><a href="shop.html">Categories</a><a href="account.html">Account</a>
+      <a href="index.html" class="active">Home</a><a href="shop.html">Shop everything</a><a href="shop.html">Categories</a><a href="seller.html">Sell</a><a href="account.html">Account</a>
     </nav>
     <div class="header-actions">
+      <a href="seller.html" class="header-sell">+ Sell</a>
       <a href="shop.html" class="icon-btn" aria-label="Search">⌕</a>
       <a href="cart.html" class="icon-btn bag-btn" aria-label="Your bag">🛍<span id="bag-count" class="badge">0</span></a>
       <button class="menu-btn" aria-label="Open menu">☰</button>
@@ -25,46 +27,51 @@
   </header>
 
   <main>
-    <section class="hero container">
+    <section class="hero container marketplace-hero">
       <div class="hero-copy">
-        <span class="eyebrow">GOOD STUFF · REAL DEALS</span>
-        <h1>Get it.<br><span>Bagged.</span></h1>
-        <p>From tech and fashion to home finds, games, accessories and whatever else is worth bagging — all in one place.</p>
-        <div class="hero-actions"><a class="btn btn-primary" href="shop.html">Bag the deal →</a><a class="btn btn-secondary" href="shop.html">Browse everything</a></div>
-        <div class="trust-row"><span>✓ Tested products</span><span>✓ Fast delivery</span><span>✓ WhatsApp support</span></div>
+        <span class="eyebrow">BUY · SELL · DISCOVER</span>
+        <h1>Buy anything.<br><span>Sell anything.</span></h1>
+        <p>Bagged is the marketplace for the stuff people actually want — from phones and laptops to furniture, fashion, cars, services and that random thing sitting in your room.</p>
+        <div class="hero-actions"><a class="btn btn-primary" href="shop.html">Start shopping →</a><a class="btn btn-secondary" href="seller.html">Sell something free</a></div>
+        <div class="trust-row"><span>✓ Free seller listings</span><span>✓ Real seller profiles</span><span>✓ WhatsApp-friendly</span></div>
       </div>
       <div class="hero-art">
-        <div class="burst">HOT<br>DEALS</div>
-        <div class="hero-card">
-          <span class="product-chip">FEATURED</span>
-          <div class="gadget-orb">📱</div>
-          <div class="hero-card-copy"><strong>Latest tech.</strong><span>Bag it before it goes.</span></div>
+        <div class="burst">POST<br>IT.</div>
+        <div class="hero-card marketplace-card">
+          <span class="product-chip">YOUR MARKETPLACE</span>
+          <div class="marketplace-stack"><b>IPHONE</b><span>₦650,000</span><b>PS5</b><span>₦780,000</span><b>SOFA</b><span>₦120,000</span><b>YOUR THING</b><span>Priced by you.</span></div>
+          <div class="hero-card-copy"><strong>One place.</strong><span>Thousands of possibilities.</span></div>
         </div>
       </div>
     </section>
 
+    <section class="sell-strip container">
+      <div><span class="eyebrow">GOT SOMETHING TO SELL?</span><h2>Post it. It’s free.</h2><p>Create your seller profile and put your listing in front of Bagged buyers.</p></div>
+      <a class="btn btn-dark" href="seller.html">Start selling →</a>
+    </section>
+
     <section class="categories container">
-      <div class="section-head"><div><span class="eyebrow">SHOP YOUR WAY</span><h2>Pick your playground.</h2></div><a class="text-link" href="shop.html">See everything →</a></div>
+      <div class="section-head"><div><span class="eyebrow">BROWSE EVERYTHING</span><h2>Pick your playground.</h2></div><a class="text-link" href="shop.html">See everything →</a></div>
       <div id="home-categories" class="category-grid"></div>
     </section>
 
     <section class="products-section container">
-      <div class="section-head"><div><span class="eyebrow">FRESH DROPS</span><h2>Bag-worthy right now.</h2></div><a class="text-link" href="shop.html">View all →</a></div>
+      <div class="section-head"><div><span class="eyebrow">FRESH LISTINGS</span><h2>Bag-worthy right now.</h2></div><a class="text-link" href="shop.html">View all →</a></div>
       <div id="featured-products" class="product-grid"></div>
     </section>
 
-    <section class="promo container">
-      <div><span class="eyebrow">THE BAGGED RULE</span><h2>Good stuff.<br>Better deals.</h2><p>New arrivals, clean listings and straightforward prices across the shop.</p><a class="btn btn-dark" href="shop.html">Bag yours →</a></div>
-      <div class="promo-art">⚡</div>
+    <section class="promo marketplace-promo container">
+      <div><span class="eyebrow">WHY SELL HERE?</span><h2>Your products.<br>Our traffic.</h2><p>Start free. Later, sellers can pay for optional boosts, better storefront tools and secure transaction services.</p><a class="btn btn-dark" href="seller.html">Open seller dashboard →</a></div>
+      <div class="promo-art">🚀</div>
     </section>
 
     <section class="steps container">
-      <div class="section-head"><div><span class="eyebrow">HOW IT WORKS</span><h2>See it. Want it. Bag it.</h2></div></div>
-      <div class="steps-grid"><div><b>01</b><h3>Find it</h3><p>Search the shop or jump into a category.</p></div><div><b>02</b><h3>Check it</h3><p>See photos, price, stock and product details.</p></div><div><b>03</b><h3>Bag it</h3><p>Add it to Your Bag or go straight to checkout.</p></div><div><b>04</b><h3>Get it</h3><p>Choose your payment method, confirm delivery and track your order.</p></div></div>
+      <div class="section-head"><div><span class="eyebrow">BUYER FLOW</span><h2>See it. Check it. Bag it.</h2></div></div>
+      <div class="steps-grid"><div><b>01</b><h3>Find it</h3><p>Search products, categories and seller listings.</p></div><div><b>02</b><h3>Check it</h3><p>Review price, photos, condition and seller details.</p></div><div><b>03</b><h3>Bag it</h3><p>Add the item to your bag and head to checkout.</p></div><div><b>04</b><h3>Get it</h3><p>Confirm delivery and track the order with Bagged.</p></div></div>
     </section>
   </main>
 
-  <footer class="site-footer"><div class="container footer-grid"><div><img src="assets/logo-light.svg" class="footer-logo" alt="Bagged" /><p>Bagged: Good stuff, sorted.</p></div><div><h4>Shop</h4><a href="shop.html">Shop everything</a><a href="shop.html">Browse categories</a><a href="cart.html">Your bag</a></div><div><h4>Help</h4><a href="mailto:hello@bagged.example">hello@bagged.example</a><a href="tel:+2348012345678">+234 801 234 5678</a><a href="https://wa.me/2348012345678" target="_blank" rel="noreferrer">WhatsApp</a></div><div><h4>Admin</h4><a href="admin.html">Dashboard</a></div></div><div class="container footer-bottom"><span>© 2026 Bagged.</span><span>Quality finds. Real value.</span></div></footer>
+  <footer class="site-footer"><div class="container footer-grid"><div><img src="assets/logo-light.svg" class="footer-logo" alt="Bagged"><p>Buy. Sell. Get Bagged.</p></div><div><h4>Shop</h4><a href="shop.html">Shop everything</a><a href="shop.html">Categories</a><a href="cart.html">Your bag</a></div><div><h4>Sell</h4><a href="seller.html">Sell on Bagged</a><a href="account.html?mode=signup">Create an account</a></div><div><h4>Help</h4><a href="mailto:hello@bagged.example">hello@bagged.example</a><a href="https://wa.me/2348012345678" target="_blank" rel="noreferrer">WhatsApp</a></div></div><div class="container footer-bottom"><span>© 2026 Bagged.</span><span>Anything worth bagging belongs here.</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js"></script><script src="js/config.js"></script><script src="js/supabase.js"></script><script src="js/data.js"></script><script src="js/app.js"></script>
 </body>
