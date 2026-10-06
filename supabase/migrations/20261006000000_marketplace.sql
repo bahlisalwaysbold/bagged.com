@@ -15,6 +15,12 @@ create table if not exists public.seller_profiles (
 alter table public.products
   add column if not exists seller_id uuid references public.seller_profiles(user_id) on delete set null;
 
+drop policy if exists "Available products are public" on public.products;
+drop policy if exists "Marketplace listings are public" on public.products;
+create policy "Marketplace listings are public"
+  on public.products for select to anon, authenticated
+  using (status = 'published' and is_active = true and is_sold = false and stock > 0);
+
 alter table public.order_items
   add column if not exists seller_id uuid references public.seller_profiles(user_id) on delete set null;
 
