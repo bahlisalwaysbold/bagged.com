@@ -44,6 +44,7 @@ form.addEventListener('submit',async event=>{
 });
 document.addEventListener('DOMContentLoaded',async()=>{
 	try{
+    if(!(await requireSignedIn('checkout.html')))return;
 		await loadCatalog();
 		const products=getProducts();
 		const items=getCart().map(item=>({ ...item, product:products.find(product=>product.id===item.id) })).filter(item=>item.product);
