@@ -42,14 +42,14 @@ The account page checks whether Google is enabled and shows a readable message i
 
 ## Marketplace database migration
 
-The initial migrations create the storefront tables, Storage bucket, RLS policies and atomic `create_order` RPC. The shop-management migration adds category/product management fields. The `20261006000000_marketplace.sql` migration adds seller profiles, seller-owned products, seller photo uploads, multi-seller order snapshots and broad marketplace categories.
+The initial migrations create the storefront tables, Storage bucket, RLS policies and atomic `create_order` RPC. The shop-management migration adds category/product management fields. The `20261006000000_marketplace.sql` migration adds seller profiles, seller-owned products, seller photo uploads, multi-seller order snapshots and broad marketplace categories. The `20261006010000_discovery_engine.sql` migration adds boosted placement, privacy-safe marketplace behavior signals, weekly trending products/searches, and personalized product recommendations for both signed-in users and guests.
 The initial migration creates `categories`, `products`, `orders`, `order_items`, and `admin_users`; the `product-images` Storage bucket; RLS/storage policies; and the atomic `create_order` RPC. The shop-management migration adds category icons/descriptions, product active state and canonical `image_urls`, ensures secure Storage policies, and enables catalog Realtime updates. It also avoids resetting existing admin-controlled active values on migration reruns.
 
 The Supabase CLI is not installed in the implementation environment, and only the publishable key was supplied. A publishable key cannot apply DDL or link a project, so pending migrations must be applied by an authorized project owner. The live project currently has the five base tables but no public catalog rows and no `product-images` bucket; apply the shop-management migration before using the expanded admin UI.
 
 Apply it once using either method:
 
-1. In Supabase Dashboard, open **SQL Editor**, create a query, paste the contents of each unapplied migration in timestamp order, and run it. For the current installation, apply `supabase/migrations/20261003000000_shop_management.sql` and then `supabase/migrations/20261006000000_marketplace.sql` after the existing initial migration.
+1. In Supabase Dashboard, open **SQL Editor**, create a query, paste the contents of each unapplied migration in timestamp order, and run it. For the current installation, apply `supabase/migrations/20261003000000_shop_management.sql`, then `supabase/migrations/20261006000000_marketplace.sql`, and finally `supabase/migrations/20261006010000_discovery_engine.sql` after the existing initial migration.
 2. Or install the Supabase CLI on Windows with Scoop, then run these commands from the project directory:
 
 ```powershell
@@ -107,4 +107,5 @@ Customer sign-up/sign-in and password recovery use Supabase Auth; account displa
 Order delivery details are stored in the database for fulfillment. Do not collect or add customer tracking cookies without a clear requirement.
 
 - `seller_profiles`: seller store name, contact details, location, verification state and plan tier.
+- `marketplace_events`: privacy-safe anonymous/member interaction signals used only to calculate aggregate trends and personalized discovery. Raw event rows are not publicly readable.
 - Seller Storage policies scope uploads/updates/deletes to the authenticated seller's own folder.
