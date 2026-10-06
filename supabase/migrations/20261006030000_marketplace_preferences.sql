@@ -52,10 +52,10 @@ security definer
 set search_path = ''
 as $$
 declare
-  current_user uuid := (select auth.uid());
+  v_user_id uuid := (select auth.uid());
   normalized_role text := lower(btrim(coalesce(p_role, '')));
 begin
-  if current_user is null then
+  if v_user_id is null then
     raise exception 'Sign in before saving your marketplace preference.'
       using errcode = '28000';
   end if;
@@ -71,7 +71,7 @@ begin
     updated_at
   )
   values (
-    current_user,
+    v_user_id,
     normalized_role,
     now()
   )
