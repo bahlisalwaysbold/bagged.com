@@ -33,6 +33,7 @@ function mapProduct(row){
     status: row.status,
     isActive: row.is_active !== false,
     sellerId: row.seller_id || null,
+    sellerCreatedAt: row.seller_profiles?.created_at || null,
     boostedUntil: row.boosted_until || null,
     boostPriority: Number(row.boost_priority || 0),
     seller: row.seller_profiles ? {
@@ -54,7 +55,7 @@ async function loadCatalog({ admin = false, refresh = false } = {}){
     const [categoryResult, productResult] = await Promise.all([
       supabaseClient.from('categories').select('id,name,icon,description').order('name'),
       supabaseClient.from('products')
-        .select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id,boosted_until,boost_priority,seller_profiles(store_name,phone,location,verified)')
+        .select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id,boosted_until,boost_priority,seller_profiles(store_name,phone,location,verified,created_at)')
         .order('created_at', { ascending: false })
     ]);
     if(categoryResult.error) throw categoryResult.error;
