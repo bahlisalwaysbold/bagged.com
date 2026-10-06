@@ -5,10 +5,80 @@ let sellerProducts=[];
 let sellerCategories=[];
 let sellerBoostPlans=[];
 let sellerBoostOrders=[];
+let sellerVerificationRequest=null;
 let sellerNotifications=[];
 let sellerNotificationsReady=false;
 let sellerNotificationChannel=null;
 let sellerNotificationPoll=null;
+
+function renderSellerVerification(){
+  const verified=sellerProfile?.verified===true && sellerProfile?.verification_status==='verified';
+  const status=sellerProfile?.verification_status||'unverified';
+  if(verified){
+    return '<section class="seller-panel seller-verification-panel verified"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Identity verified. ✓</h2></div><span class="seller-status">✓ Verified</span></div><p>Your identity has been manually reviewed by Bagged. You can publish listings and build your seller reputation.</p><div class="verification-proof"><span>✓ Identity checked</span><span>✓ Seller privileges unlocked</span></div></section>';
+  }
+  if(sellerVerificationRequest?.status==='pending'){
+    return '<section class="seller-panel seller-verification-panel pending"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Verification is being reviewed.</h2></div><span class="seller-status">Pending</span></div><p>Bagged is reviewing your seller details. We may contact you to inspect your government ID. You cannot publish listings until approval.</p><div class="verification-proof"><span>Submitted '+escapeHtml(sellerVerificationRequest.legal_name)+'</span><span>'+escapeHtml(sellerVerificationRequest.id_type)+'</span></div></section>';
+  }
+  const rejection=sellerVerificationRequest?.status==='rejected' ? '<p class="verification-rejection"><strong>Review note:</strong> '+escapeHtml(sellerVerificationRequest.rejection_reason||'Your last request was not approved. Check your details and submit again.')+'</p>' : '';
+  return '<section class="seller-panel seller-verification-panel"><div class="panel-heading"><div><span class="eyebrow">SELLER TRUST</span><h2>Verify before you sell.</h2></div><span class="seller-status">Not verified</span></div><p>For launch, Bagged uses free manual verification. Submit your real details, then our admin will verify your identity before you can publish listings.</p>'+rejection+'<form id="verification-form" class="seller-form"><label>Full legal name<input required name="legalName" maxlength="160" value="'+escapeHtml(sellerVerificationRequest?.legal_name||'')+'" placeholder="Name on your government ID"></label><div class="two-col"><label>Phone number<input required name="phone" autocomplete="tel" maxlength="40" value="'+escapeHtml(sellerVerificationRequest?.phone||sellerProfile?.phone||'')+'" placeholder="0801 234 5678"></label><label>Location<input required name="location" maxlength="120" value="'+escapeHtml(sellerVerificationRequest?.location||sellerProfile?.location||'')+'" placeholder="City, State"></label></div><div class="two-col"><label>Government ID<select required name="idType"><option value="">Choose ID type</option><option>NIN</option><option>International passport</option><option>Driver\'s licence</option><option>Voter\'s card</option><option>Other government ID</option></select></label><label>Last digits only<input name="idLast4" inputmode="numeric" maxlength="12" value="'+escapeHtml(sellerVerificationRequest?.id_last4||'')+'" placeholder="Last 4 digits (optional)"></label></div><label>Anything we should know?<textarea name="sellerNote" rows="3" maxlength="600" placeholder="Optional context for the Bagged admin."></textarea><small class="verification-privacy">Never enter your full NIN, BVN, password, or upload an ID document here. Bagged will contact you for the manual ID check.</small><p id="verification-message" class="seller-message" role="status"></p><button class="btn btn-primary full" type="submit">Submit verification request →</button></form></section>';
+}
+
+async function submitSellerVerification(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const submit=form.querySelector('[type="submit"]');
+  const values=new FormData(form);
+  const legalName=String(values.get('legalName')||'').trim();
+  const phone=String(values.get('phone')||'').trim();
+  const location=String(values.get('location')||'').trim();
+  const idType=String(values.get('idType')||'').trim();
+  const idLast4=String(values.get('idLast4')||'').trim();
+  const sellerNote=String(values.get('sellerNote')||'').trim();
+  const message=document.getElementById('verification-message');
+  if(legalName.length<3||phone.length<7||location.length<2||!idType){
+    if(message)message.textContent='Complete your legal name, phone, location and ID type.';
+    return;
+  }
+  if(idLast4 && !/^[0-9A-Za-z]{4,12}$/.test(idLast4)){
+    if(message)message.textContent='Use only the last digits of the ID.';
+    return;
+  }
+  submit.disabled=true;
+  submit.textContent='Submitting…';
+  try{
+    const {data,error}=await supabaseClient.from('seller_verification_requests').insert({
+      seller_id:sellerUser.id,
+      legal_name:legalName,
+      phone,
+      location,
+      id_type:idType,
+      id_last4:idLast4||null,
+      seller_note:sellerNote||null
+    }).select('*').single();
+    if(error)throw error;
+    await supabaseClient.from('seller_profiles').update({
+      phone,
+      location,
+      verification_status:'pending',
+      updated_at:new Date().toISOString()
+    }).eq('user_id',sellerUser.id);
+    sellerVerificationRequest=data;
+    sellerProfile={...sellerProfile,phone,location,verification_status:'pending'};
+    showToast('Verification request sent. ✅');
+    renderSellerPage();
+  }catch(error){
+    if(message)message.textContent=error.message||'Could not submit your verification request.';
+  }finally{
+    submit.disabled=false;
+    submit.textContent='Submit verification request →';
+  }
+}
+
+function bindSellerVerification(){
+  const form=document.getElementById('verification-form');
+  if(form)form.addEventListener('submit',submitSellerVerification);
+}
 
 function notificationTime(value){
   const date=new Date(value);
@@ -139,7 +209,7 @@ function sellerFormValues(){
 
 function renderSellerPage(){
   const categoryOptions=sellerCategories.map(c=>'<option value="'+escapeHtml(c.name)+'">'+escapeHtml(c.name)+'</option>').join('');
-  sellerRoot.innerHTML='<div class="seller-dashboard-grid">'+
+  sellerRoot.innerHTML=renderSellerVerification()+'<div class="seller-dashboard-grid">'+
     '<section class="seller-panel">'+
       '<div class="panel-heading"><div><span class="eyebrow">YOUR SELLER PROFILE</span><h2>Set up your shop.</h2></div><span class="seller-status">'+(sellerProfile?.verified?'✓ Verified':'Free seller')+'</span></div>'+
       '<form id="seller-profile-form" class="seller-form">'+
@@ -171,6 +241,7 @@ function renderSellerPage(){
   '</section>'+
   '<section class="seller-growth seller-boost-section"><span class="eyebrow">GET SEEN</span><h2>Put your listing in the spotlight.</h2><p class="boost-lead">Boosts buy premium visibility. Your request is recorded here, then Bagged confirms payment and activates the placement.</p><div class="boost-plan-grid">'+sellerBoostPlans.map(plan=>'<div class="boost-plan"><span class="boost-plan-badge">🚀 '+escapeHtml(plan.name)+'</span><strong>'+formatNaira(plan.price)+'</strong><b>'+plan.days+' days</b><span>'+escapeHtml(plan.description||'Premium Featured placement')+'</span></div>').join('')+'</div></section>';
 
+  bindSellerVerification();
   bindSellerForms();
 }
 
@@ -204,13 +275,14 @@ async function loadSellerData(){
     sellerRoot.innerHTML='<section class="seller-login"><span class="eyebrow">SELL ON BAGGED</span><h2>Sign in before you sell.</h2><p>Create a free Bagged account, then come back here to post listings.</p><a class="btn btn-primary" href="account.html?mode=signup">Create seller account →</a><a class="btn btn-secondary" href="account.html">I already have an account</a></section>';
     return;
   }
-  const [profileResult,productsResult,categoryResult,boostPlanResult,boostOrderResult,roleResult]=await Promise.all([
+  const [profileResult,productsResult,categoryResult,boostPlanResult,boostOrderResult,roleResult,verificationResult]=await Promise.all([
     supabaseClient.from('seller_profiles').select('*').eq('user_id',sellerUser.id).maybeSingle(),
     supabaseClient.from('products').select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id,boosted_until,boost_priority').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}),
     supabaseClient.from('categories').select('id,name,icon,description').order('name'),
     supabaseClient.from('boost_plans').select('id,name,days,price,priority,description').eq('is_active',true).order('price'),
     supabaseClient.from('boost_orders').select('id,product_id,plan_id,amount,status,payment_reference,activated_at,created_at,boost_plans(name,days,priority,description)').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}),
-    supabaseClient.from('marketplace_preferences').select('role').eq('user_id',sellerUser.id).maybeSingle()
+    supabaseClient.from('marketplace_preferences').select('role').eq('user_id',sellerUser.id).maybeSingle(),
+    supabaseClient.from('seller_verification_requests').select('id,seller_id,legal_name,phone,location,id_type,id_last4,seller_note,status,rejection_reason,reviewed_at,created_at').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
   ]);
   if(profileResult.error)throw profileResult.error;
   if(productsResult.error)throw productsResult.error;
@@ -218,7 +290,9 @@ async function loadSellerData(){
   if(boostPlanResult.error)throw boostPlanResult.error;
   if(boostOrderResult.error)throw boostOrderResult.error;
   if(roleResult.error)throw roleResult.error;
-  sellerProfile=profileResult.data||{store_name:'',phone:'',location:'',bio:'',verified:false,plan:'free'};
+  if(verificationResult.error)throw verificationResult.error;
+  sellerProfile=profileResult.data||{store_name:'',phone:'',location:'',bio:'',verified:false,verification_status:'unverified',plan:'free'};
+  sellerVerificationRequest=verificationResult.data||null;
   const marketplaceRole=roleResult.data?.role||null;
   if(marketplaceRole==='buyer'){
     sellerRoot.innerHTML='<section class="seller-login"><span class="eyebrow">SELLER CENTER</span><h2>Seller tools are off.</h2><p>Your Bagged account is currently in Buyer mode. Switch to Seller or Both in Account to open Seller Center.</p><a class="btn btn-primary" href="account.html">Open account settings →</a><a class="btn btn-secondary" href="shop.html">Keep shopping</a></section>';
@@ -261,6 +335,11 @@ async function publishListing(event){
   const submit=form.querySelector('[type="submit"]');
   const listing=sellerFormValues();
   const errorBox=document.getElementById('seller-message');
+  if(!(sellerProfile?.verified===true && sellerProfile?.verification_status==='verified')){
+    errorBox.textContent='Verify your seller identity before publishing listings.';
+    errorBox.className='seller-message form-error';
+    return;
+  }
   if(!sellerProfile?.store_name){
     errorBox.textContent='Save your seller profile first.';
     errorBox.className='seller-message form-error';
