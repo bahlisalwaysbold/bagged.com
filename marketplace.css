@@ -91,3 +91,80 @@
 .image-preview-item>div img.admin-preview-image{
   padding:6px;
 }
+
+/* Polished product-card status overlays.
+   Status labels have dedicated left/right lanes so they never collide with each other or the photo. */
+.product-image{
+  position:relative;
+  isolation:isolate;
+  background:var(--grey);
+}
+.product-image .listing-flags{
+  position:absolute;
+  inset:10px;
+  z-index:3;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  pointer-events:none;
+}
+.listing-flags-left,
+.listing-flags-right{
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+  min-width:0;
+  max-width:48%;
+}
+.product-image .pill,
+.product-image .low-stock{
+  position:static;
+  margin:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  max-width:100%;
+  padding:6px 10px;
+  border:2px solid var(--black);
+  border-radius:999px;
+  font-size:10px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  box-shadow:3px 3px 0 rgba(17,17,17,.18);
+  backdrop-filter:blur(5px);
+}
+.product-image .pill{
+  background:rgba(255,196,0,.96);
+  color:var(--black);
+}
+.product-image .low-stock{
+  background:rgba(255,107,26,.96);
+  color:#fff;
+}
+.product-image img.product-art{
+  position:relative;
+  z-index:1;
+}
+@media(max-width:620px){
+  .product-image .listing-flags{
+    inset:8px;
+    gap:7px;
+  }
+  .listing-flags-left,
+  .listing-flags-right{
+    max-width:46%;
+  }
+  .product-image .pill,
+  .product-image .low-stock{
+    min-height:26px;
+    padding:5px 8px;
+    font-size:9px;
+    box-shadow:2px 2px 0 rgba(17,17,17,.16);
+  }
+}
