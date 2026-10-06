@@ -188,7 +188,17 @@ function renderHomepageProducts(){
   const root=document.getElementById('homepage-products');
   const section=document.getElementById('live-marketplace-section');
   if(!root)return;
-  const items=getProducts().filter(product=>product.isActive&&!product.isSold&&product.stock>0).slice(0,8);
+  const candidates=getProducts().filter(product=>product.isActive&&!product.isSold&&product.stock>0);
+  const sellerCounts=new Map();
+  const items=[];
+  for(const product of candidates){
+    const sellerKey=String(product.sellerId||'bagged-store');
+    const count=sellerCounts.get(sellerKey)||0;
+    if(count>=2)continue;
+    sellerCounts.set(sellerKey,count+1);
+    items.push(product);
+    if(items.length>=8)break;
+  }
   root.innerHTML=items.map(productCard).join('');
   section?.classList.toggle('hidden',!items.length);
 }
