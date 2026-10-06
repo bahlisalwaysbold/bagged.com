@@ -60,7 +60,7 @@
   function renderDiscovery(){
     const seen=new Set();
     const sections=[
-      ['boosted-products',orderedProducts(window.baggedDiscovery?.boosted_ids)],
+      ['boosted-products',orderedProducts(window.baggedDiscovery?.popular_ids)],
       ['trending-products',orderedProducts(window.baggedDiscovery?.trending_ids)],
       ['personalized-products',orderedProducts(window.baggedDiscovery?.personalized_ids)],
       ['fresh-products',orderedProducts(window.baggedDiscovery?.fresh_ids)]
