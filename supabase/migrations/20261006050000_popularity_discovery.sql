@@ -139,6 +139,17 @@ begin
     order by score desc, created_at desc
     limit 12
   ),
+  boosted as (
+    select p.id
+    from public.products p
+    where p.status = 'published'
+      and p.is_active = true
+      and p.is_sold = false
+      and p.stock > 0
+      and p.boosted_until > now()
+    order by p.boost_priority desc, p.boosted_until desc, p.created_at desc
+    limit 12
+  ),
   fresh as (
     select p.id
     from public.products p
@@ -183,7 +194,7 @@ begin
     'personalized_ids',
       coalesce((select jsonb_agg(p.id) from personalized p), '[]'::jsonb),
     'boosted_ids',
-      coalesce((select jsonb_agg(p.id) from popular p), '[]'::jsonb),
+      coalesce((select jsonb_agg(b.id) from boosted b), '[]'::jsonb),
     'fresh_ids',
       coalesce((select jsonb_agg(f.id) from fresh f), '[]'::jsonb)
   )
