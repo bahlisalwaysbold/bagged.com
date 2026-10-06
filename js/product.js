@@ -10,6 +10,7 @@ function renderProduct(p){
 document.addEventListener('DOMContentLoaded',async()=>{
 	try{
 		await loadCatalog();
+    await completePendingBagAction();
 		const product=getProducts().find(item=>item.id===id);
 		root.innerHTML=product?'':`<div class="empty-state"><div class="empty-bag">🛍</div><h2>We couldn't find that listing.</h2><p>It may have sold or been removed.</p><a class="btn btn-primary" href="shop.html">Shop everything →</a></div>`;
 		if(product) renderProduct(product);
