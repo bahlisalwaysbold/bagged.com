@@ -99,10 +99,17 @@ as $$
 begin
   if new.user_id = (select auth.uid())
      and not (select public.is_admin()) then
-    new.verified := old.verified;
-    new.verification_status := old.verification_status;
-    new.verified_at := old.verified_at;
-    new.verification_reviewed_at := old.verification_reviewed_at;
+    if tg_op = 'INSERT' then
+      new.verified := false;
+      new.verification_status := 'unverified';
+      new.verified_at := null;
+      new.verification_reviewed_at := null;
+    else
+      new.verified := old.verified;
+      new.verification_status := old.verification_status;
+      new.verified_at := old.verified_at;
+      new.verification_reviewed_at := old.verification_reviewed_at;
+    end if;
   end if;
 
   return new;
@@ -113,7 +120,7 @@ revoke all on function public.guard_seller_profile_verification() from public, a
 
 drop trigger if exists protect_seller_verification_fields on public.seller_profiles;
 create trigger protect_seller_verification_fields
-before update on public.seller_profiles
+before insert or update on public.seller_profiles
 for each row
 execute function public.guard_seller_profile_verification();
 
