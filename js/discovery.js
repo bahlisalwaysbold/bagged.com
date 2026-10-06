@@ -37,9 +37,11 @@
     if(!window.supabaseClient)return {};
     try{
       const {data:{session}}=await supabaseClient.auth.getSession();
+      const consent=window.BaggedPrivacy?.consent?.()||'unknown';
+      const allowed=consent==='accepted';
       const {data,error}=await supabaseClient.rpc('get_marketplace_discovery',{
-        p_user_id:session?.user?.id||null,
-        p_visitor_id:getVisitorId()
+        p_user_id:allowed?(session?.user?.id||null):null,
+        p_visitor_id:allowed?getVisitorId():null
       });
       if(error)throw error;
       return data||{};
