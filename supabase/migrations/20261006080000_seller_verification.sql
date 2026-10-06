@@ -27,6 +27,21 @@ where verification_status is null
 create index if not exists seller_profiles_verification_idx
   on public.seller_profiles(verification_status, created_at desc);
 
+-- Existing seller listings must also respect the new verification gate.
+update public.products p
+set
+  is_active = false,
+  status = 'draft',
+  updated_at = now()
+where p.seller_id is not null
+  and not exists (
+    select 1
+    from public.seller_profiles sp
+    where sp.user_id = p.seller_id
+      and sp.verified = true
+      and sp.verification_status = 'verified'
+  );
+
 create table if not exists public.seller_verification_requests (
   id uuid primary key default gen_random_uuid(),
   seller_id uuid not null references public.seller_profiles(user_id) on delete cascade,
