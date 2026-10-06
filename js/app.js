@@ -146,6 +146,33 @@ async function setupMarketplaceRoleUI(){
 }
 const formatNaira = n => '₦' + Number(n).toLocaleString('en-NG');
 const getCart = () => { try { return JSON.parse(localStorage.getItem('bagged_cart') || '[]'); } catch { return []; } };
+const SAVED_KEY='bagged_saved_products';
+function getSavedProductIds(){
+  try{return JSON.parse(localStorage.getItem(SAVED_KEY)||'[]').filter(Boolean);}
+  catch{return [];}
+}
+function isSavedProduct(id){return getSavedProductIds().includes(String(id));}
+function toggleSavedProduct(id){
+  const key=String(id);
+  const saved=getSavedProductIds();
+  const next=saved.includes(key)?saved.filter(item=>item!==key):[...saved,key];
+  try{localStorage.setItem(SAVED_KEY,JSON.stringify(next));}catch{}
+  const savedNow=next.includes(key);
+  document.querySelectorAll('[data-save-product]').forEach(button=>{
+    if(button.dataset.saveProduct!==key)return;
+    button.textContent=savedNow?'♥':'♡';
+    button.setAttribute('aria-label',savedNow?'Remove from saved':'Save this listing');
+    button.setAttribute('aria-pressed',savedNow?'true':'false');
+  });
+  const product=getProducts().find(item=>String(item.id)===key);
+  if(savedNow)window.BaggedDiscovery?.trackMarketplaceEvent('save',{productId:product?.id,categoryId:product?.categoryId,throttleValue:'save_'+key});
+  showToast(savedNow?'Saved to your finds. ♥':'Removed from saved.');
+}
+function getSavedProducts(){
+  const saved=new Set(getSavedProductIds());
+  return getProducts().filter(product=>saved.has(String(product.id)));
+}
+
 const setCart = cart => { localStorage.setItem('bagged_cart', JSON.stringify(cart)); updateBagCount(); window.dispatchEvent(new Event('bagged:cart-change')); };
 function updateBagCount(){ const el=document.getElementById('bag-count'); if(el) el.textContent=getCart().reduce((s,i)=>s+i.qty,0); }
 function addToCart(id, qty=1){ const p=getProducts().find(x=>x.id===id); if(!p || p.stock<1){showToast('This item is no longer available.');return;} const cart=getCart(); const item=cart.find(x=>x.id===id); if(item) item.qty=Math.min(item.qty+qty,p.stock); else cart.push({id,qty:Math.min(qty,p.stock)}); setCart(cart); showToast(`${p.name} bagged! 🛍`); }
@@ -157,12 +184,34 @@ function renderProductImage(value, className='product-art'){ const v=String(valu
 function categoryIcon(category=''){ const c=category.toLowerCase(); if(/phone|tablet|mobile/.test(c)) return '📱'; if(/laptop|computer|pc|monitor/.test(c)) return '💻'; if(/game|console|playstation|xbox/.test(c)) return '🎮'; if(/audio|accessor|headphone|earbud|charger/.test(c)) return '🎧'; if(/fashion|cloth|shoe|wear/.test(c)) return '👕'; if(/home|living|furniture|kitchen/.test(c)) return '🏠'; if(/beauty|care|cosmetic/.test(c)) return '✨'; if(/car|auto|vehicle|motor/.test(c)) return '🚗'; if(/book|stationery|school/.test(c)) return '📚'; if(/food|drink|grocery/.test(c)) return '🍽️'; if(/tool|hardware|building/.test(c)) return '🛠️'; return '🛍️'; }
 function categoryBlurb(category=''){ const c=category.toLowerCase(); if(/phone|tablet|mobile/.test(c)) return 'Phones, tablets & more'; if(/laptop|computer|pc|monitor/.test(c)) return 'Work, school & power'; if(/game|console|playstation|xbox/.test(c)) return 'Games, consoles & gear'; if(/fashion|cloth|shoe|wear/.test(c)) return 'Style, footwear & more'; if(/home|living|furniture|kitchen/.test(c)) return 'Home essentials & finds'; if(/beauty|care|cosmetic/.test(c)) return 'Beauty & everyday care'; return 'Browse this collection'; }
 function renderHomeCategories(){ const root=document.getElementById('home-categories'); if(!root) return; const cats=catalogState.categories; const styles=['yellow','black','orange','cream']; root.innerHTML=cats.map((category,i)=>`<a class="category-card ${styles[i%styles.length]}" href="shop.html?category=${encodeURIComponent(category.name)}"><span>${escapeHtml(category.icon||categoryIcon(category.name))}</span><strong>${escapeHtml(category.name)}</strong><small>${escapeHtml(category.description||categoryBlurb(category.name))}</small></a>`).join('') || '<p class="catalog-message">No categories yet. Check back soon.</p>'; }
+function renderHomepageProducts(){
+  const root=document.getElementById('homepage-products');
+  const section=document.getElementById('live-marketplace-section');
+  if(!root)return;
+  const items=getProducts().filter(product=>product.isActive&&!product.isSold&&product.stock>0).slice(0,8);
+  root.innerHTML=items.map(productCard).join('');
+  section?.classList.toggle('hidden',!items.length);
+}
 function productCard(p){
   const seller=p.seller;
   const sellerLabel=seller ? (seller.verified?'✓ '+seller.name:seller.name) : 'Bagged Store';
-  return `<article class="product-card"><a class="product-image" href="product.html?id=${encodeURIComponent(p.id)}">${renderProductImage(p.image)}${p.badge?`<span class="pill">${escapeHtml(p.badge)}</span>`:''}${p.stock<=2?'<span class="low-stock">Low stock</span>':''}</a><div class="product-info"><div class="mini-meta"><span>${escapeHtml(p.category||'General')}</span><span>${escapeHtml(p.condition||'New')}</span></div><h3><a href="product.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a></h3><p class="seller-mini">${escapeHtml(sellerLabel)}</p><div class="price-row"><strong>${p.isSale?`<del>${formatNaira(p.regularPrice)}</del> `:''}${formatNaira(p.price)}</strong><button class="mini-bag" onclick="addToCart('${String(p.id).replace(/'/g,"\\'")}')">Bag it</button></div></div></article>`;
+  const sellerLocation=seller?.location||'';
+  const saved=isSavedProduct(p.id);
+  return `<article class="product-card"><a class="product-image" href="product.html?id=${encodeURIComponent(p.id)}">${renderProductImage(p.image)}${p.badge?`<span class="pill">${escapeHtml(p.badge)}</span>`:''}${p.stock<=2?'<span class="low-stock">Low stock</span>':''}</a><div class="product-info"><div class="mini-meta"><span>${escapeHtml(p.category||'General')}</span><span>${escapeHtml(p.condition||'New')}</span></div><h3><a href="product.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a></h3><p class="seller-mini">${escapeHtml(sellerLabel)}${sellerLocation?' · '+escapeHtml(sellerLocation):''}</p><div class="price-row"><strong>${p.isSale?`<del>${formatNaira(p.regularPrice)}</del> `:''}${formatNaira(p.price)}</strong><div class="product-card-actions"><button class="save-product" type="button" data-save-product="${escapeHtml(p.id)}" aria-label="${saved?'Remove from saved':'Save this listing'}" aria-pressed="${saved?'true':'false'}" onclick="toggleSavedProduct('${String(p.id).replace(/'/g,"\\'")}')">${saved?'♥':'♡'}</button><button class="mini-bag" onclick="addToCart('${String(p.id).replace(/'/g,"\\'")}')">Bag it</button></div></div></div></article>`;
 }
-function setupPage(){ updateBagCount(); document.querySelectorAll('.menu-btn').forEach(btn=>btn.addEventListener('click',()=>document.querySelector('.desktop-nav')?.classList.toggle('open'))); setupMarketplaceRoleUI(); showBaggedCookieConsent(); }
+function setupPage(){
+  updateBagCount();
+  document.querySelectorAll('.menu-btn').forEach(btn=>btn.addEventListener('click',()=>document.querySelector('.desktop-nav')?.classList.toggle('open')));
+  const homeSearch=document.getElementById('home-search');
+  const homeSearchInput=document.getElementById('home-search-input');
+  homeSearch?.addEventListener('submit',event=>{
+    const value=(homeSearchInput?.value||'').trim();
+    if(!value){event.preventDefault();homeSearchInput?.focus();return;}
+    window.BaggedDiscovery?.trackMarketplaceEvent('search',{searchTerm:value,throttleValue:value.toLowerCase()});
+  });
+  setupMarketplaceRoleUI();
+  showBaggedCookieConsent();
+}
 function finishLoading(){ const loader=document.getElementById('loader'); if(loader) loader.classList.add('hide'); }
 function showCatalogError(error){ document.querySelectorAll('#home-categories,#featured-products,#shop-results,#product-root,#cart-root,#checkout-summary').forEach(root=>{if(root) root.innerHTML=`<div class="catalog-message" role="alert">${escapeHtml(error.message||'The shop is temporarily unavailable. Please try again.')}</div>`;}); }
 window.addEventListener('bagged:cart-change', updateBagCount);
@@ -182,6 +231,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
 	try{
 		await loadCatalog();
 		renderHomeCategories();
+		renderHomepageProducts();
 		const featured=document.getElementById('featured-products');
 		if(featured){const products=getProducts();const selected=products.filter(product=>product.isFeatured);featured.innerHTML=(selected.length?selected:products).slice(0,4).map(productCard).join('')||'<p class="catalog-message">No products available yet.</p>';}
 	}catch(error){showCatalogError(error);}
