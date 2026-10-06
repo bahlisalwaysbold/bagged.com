@@ -635,3 +635,12 @@
     display:grid;
   }
 }
+
+
+/* Automated seller verification */
+.verification-actions{display:grid;gap:10px;margin:18px 0 8px}
+.verification-actions small{display:block;color:#5f5f5f;line-height:1.5}
+.verification-manual{margin-top:18px;border-top:1px solid var(--line,#e8e8e8);padding-top:14px}
+.verification-manual summary{cursor:pointer;font-weight:700}
+.verification-manual[open] summary{margin-bottom:10px}
+.verification-manual .form-hint{margin:0 0 12px}
