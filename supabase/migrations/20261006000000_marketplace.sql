@@ -437,6 +437,25 @@ begin
       coalesce((select jsonb_agg(t) from trending_terms t), '[]'::jsonb),
     'trending_categories',
       coalesce((select jsonb_agg(tc) from trending_categories tc), '[]'::jsonb),
+    'trending_ids',
+      coalesce((
+        select jsonb_agg(tp.id)
+        from (
+          select p.id,
+            sum(case e.event_type when 'purchase' then 8 when 'cart_add' then 5 when 'save' then 4 else 2 end)::numeric as score
+          from public.marketplace_events e
+          join public.products p on p.id = e.product_id
+          where e.created_at >= date_trunc('week', now())
+            and e.event_type in ('view','save','cart_add','purchase')
+            and p.status = 'published'
+            and p.is_active = true
+            and p.is_sold = false
+            and p.stock > 0
+          group by p.id
+          order by score desc
+          limit 12
+        ) tp
+      ), '[]'::jsonb),
     'personalized_ids',
       coalesce((select jsonb_agg(p.id) from personalized p), '[]'::jsonb),
     'boosted_ids',
