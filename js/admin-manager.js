@@ -50,7 +50,11 @@ async function renderDashboard(){
       .select('id,product_id,plan_id,amount,status,payment_reference,activated_at,created_at,seller_profiles(store_name),products(name),boost_plans(name,days,priority)')
       .order('created_at',{ascending:false});
     if(boostError)throw boostError;
-    renderDashboardContent(orders||[],boostOrders||[]);
+    const {data:verificationRequests,error:verificationError}=await supabaseClient.from('seller_verification_requests')
+      .select('id,seller_id,legal_name,phone,location,id_type,id_last4,seller_note,status,rejection_reason,reviewed_at,created_at,seller_profiles(store_name,phone,location,verified)')
+      .order('created_at',{ascending:false});
+    if(verificationError)throw verificationError;
+    renderDashboardContent(orders||[],boostOrders||[],verificationRequests||[]);
   }catch(error){
     if(error.code==='NOT_ADMIN'){renderUnauthorized();return;}
     adminRoot.innerHTML=`<div class="admin-login"><div class="admin-login-card"><span class="eyebrow">BAGGED CONTROL ROOM</span><h1>Dashboard unavailable.</h1><p class="form-error" role="alert">${escapeHtml(error.message||'Could not load the live shop data.')}</p><button id="retry-dashboard" class="btn btn-primary">Try again</button><button id="return-login" class="btn btn-secondary">Sign in again</button></div></div>`;
@@ -59,12 +63,24 @@ async function renderDashboard(){
   }
 }
 
-function renderDashboardContent(orders,boostOrders=[]){
+function renderDashboardContent(orders,boostOrders=[],verificationRequests=[]){
+  window.__baggedVerificationRequests=verificationRequests;
   const products=getProducts();
   const categories=catalogState.categories;
   const totalStock=products.reduce((sum,product)=>sum+product.stock,0);
   const revenue=orders.filter(order=>order.status!=='Cancelled').reduce((sum,order)=>sum+Number(order.total||0),0);
-  adminRoot.innerHTML=`<div class="admin-shell"><aside class="admin-side"><img src="assets/logo-light.svg" class="admin-logo" alt="Bagged"><nav><a class="active" href="#overview">Overview</a><a href="#categories">Categories</a><a href="#products">Products</a><a href="#boosts">Boosts</a><a href="#orders">Orders</a></nav><button id="logout" class="logout">Log out</button></aside><section class="admin-main"><div class="admin-top"><div><span class="eyebrow">BAGGED CONTROL ROOM</span><h1>Shop dashboard.</h1><p class="admin-note">All figures are from your live store data.</p></div><a class="btn btn-primary" href="index.html">View store ↗</a></div><div class="stat-grid"><div class="stat"><span>Products</span><strong>${products.length}</strong></div><div class="stat"><span>Categories</span><strong>${categories.length}</strong></div><div class="stat"><span>Total stock</span><strong>${totalStock}</strong></div><div class="stat"><span>Low stock</span><strong>${products.filter(product=>product.stock<=2&&!product.isSold).length}</strong></div><div class="stat"><span>Orders</span><strong>${orders.length}</strong></div><div class="stat"><span>Revenue</span><strong>${formatNaira(revenue)}</strong></div></div><section id="categories" class="admin-panel"><div class="panel-head"><div><span class="eyebrow">CATALOG</span><h2>Categories</h2></div><button id="add-category" class="btn btn-primary">+ Add category</button></div><div class="admin-table-wrap"><table><thead><tr><th>Icon</th><th>Name</th><th>Description</th><th></th></tr></thead><tbody>${categories.length?categories.map(category=>`<tr><td>${escapeHtml(category.icon||'🛍️')}</td><td>${escapeHtml(category.name)}</td><td>${escapeHtml(category.description||'')}</td><td><button class="table-btn" data-edit-category="${category.id}">Edit</button><button class="table-btn danger" data-delete-category="${category.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="4">No categories yet. Add any category to start your catalog.</td></tr>'}</tbody></table></div></section><section id="products" class="admin-panel"><div class="panel-head"><div><span class="eyebrow">INVENTORY</span><h2>Products</h2></div><button id="add-product" class="btn btn-primary">+ Add product</button></div><div class="admin-table-wrap"><table><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Visibility</th><th></th></tr></thead><tbody>${products.length?products.map(product=>`<tr><td><div class="table-product"><span class="table-art">${renderProductImage(product.image,'admin-product-image')}</span><span><b>${escapeHtml(product.name)}</b><small>${escapeHtml(product.condition)}${product.isFeatured?' · Featured':''}${product.isSale?' · Sale':''}</small></span></div></td><td>${escapeHtml(product.category)}</td><td>${product.isSale?`<del>${formatNaira(product.regularPrice)}</del> `:''}${formatNaira(product.price)}</td><td>${product.stock}</td><td><span class="status ${!product.isActive||product.isSold?'out':product.stock===0?'new':'in'}">${!product.isActive?'Hidden':product.isSold?'Sold':product.stock===0?'Out of stock':'Active'}</span></td><td><button class="table-btn" data-edit-product="${product.id}">Edit</button><button class="table-btn" data-duplicate-product="${product.id}">Duplicate</button><button class="table-btn danger" data-delete-product="${product.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="6">No products yet. Add a listing to start selling.</td></tr>'}</tbody></table></div></section><section id="orders" class="admin-panel"><div class="panel-head"><div><span class="eyebrow">SALES</span><h2>Recent orders</h2></div></div>${orders.length?`<div class="orders-list">${orders.slice(0,30).map(order=>`<article class="order-row"><div><b>${escapeHtml(order.order_number)}</b><span>${escapeHtml(order.customer_name)} · ${escapeHtml(order.customer_phone)}<br>${(order.order_items||[]).map(item=>`${escapeHtml(item.product_name)} × ${item.quantity}`).join(', ')}</span></div><strong>${formatNaira(order.total)}</strong><select class="status-select" data-order-status="${order.id}" aria-label="Update status for ${escapeHtml(order.order_number)}">${orderStatuses.map(status=>`<option ${order.status===status?'selected':''}>${status}</option>`).join('')}</select></article>`).join('')}</div>`:'<div class="empty-state compact"><div class="empty-bag">🛍</div><h3>No orders yet.</h3><p>Customer orders will show here.</p></div>'}</section></section></div>`;
+  adminRoot.innerHTML=`<div class="admin-shell"><aside class="admin-side"><img src="assets/logo-light.svg" class="admin-logo" alt="Bagged"><nav><a class="active" href="#overview">Overview</a><a href="#categories">Categories</a><a href="#products">Products</a><a href="#verification">Verification</a><a href="#boosts">Boosts</a><a href="#orders">Orders</a></nav><button id="logout" class="logout">Log out</button></aside><section class="admin-main"><div class="admin-top"><div><span class="eyebrow">BAGGED CONTROL ROOM</span><h1>Shop dashboard.</h1><p class="admin-note">All figures are from your live store data.</p></div><a class="btn btn-primary" href="index.html">View store ↗</a></div><div class="stat-grid"><div class="stat"><span>Products</span><strong>${products.length}</strong></div><div class="stat"><span>Categories</span><strong>${categories.length}</strong></div><div class="stat"><span>Total stock</span><strong>${totalStock}</strong></div><div class="stat"><span>Low stock</span><strong>${products.filter(product=>product.stock<=2&&!product.isSold).length}</strong></div><div class="stat"><span>Orders</span><strong>${orders.length}</strong></div><div class="stat"><span>Revenue</span><strong>${formatNaira(revenue)}</strong></div><div class="stat"><span>Seller checks</span><strong>${verificationRequests.filter(request=>request.status==="pending").length}</strong></div></div><section id="categories" class="admin-panel"><div class="panel-head"><div><span class="eyebrow">CATALOG</span><h2>Categories</h2></div><button id="add-category" class="btn btn-primary">+ Add category</button></div><div class="admin-table-wrap"><table><thead><tr><th>Icon</th><th>Name</th><th>Description</th><th></th></tr></thead><tbody>${categories.length?categories.map(category=>`<tr><td>${escapeHtml(category.icon||'🛍️')}</td><td>${escapeHtml(category.name)}</td><td>${escapeHtml(category.description||'')}</td><td><button class="table-btn" data-edit-category="${category.id}">Edit</button><button class="table-btn danger" data-delete-category="${category.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="4">No categories yet. Add any category to start your catalog.</td></tr>'}</tbody></table></div></section><section id="products" class="admin-panel"><div class="panel-head"><div><span class="eyebrow">INVENTORY</span><h2>Products</h2></div><button id="add-product" class="btn btn-primary">+ Add product</button></div><div class="admin-table-wrap"><table><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Visibility</th><th></th></tr></thead><tbody>${products.length?products.map(product=>`<tr><td><div class="table-product"><span class="table-art">${renderProductImage(product.image,'admin-product-image')}</span><span><b>${escapeHtml(product.name)}</b><small>${escapeHtml(product.condition)}${product.isFeatured?' · Featured':''}${product.isSale?' · Sale':''}</small></span></div></td><td>${escapeHtml(product.category)}</td><td>${product.isSale?`<del>${formatNaira(product.regularPrice)}</del> `:''}${formatNaira(product.price)}</td><td>${product.stock}</td><td><span class="status ${!product.isActive||product.isSold?'out':product.stock===0?'new':'in'}">${!product.isActive?'Hidden':product.isSold?'Sold':product.stock===0?'Out of stock':'Active'}</span></td><td><button class="table-btn" data-edit-product="${product.id}">Edit</button><button class="table-btn" data-duplicate-product="${product.id}">Duplicate</button><button class="table-btn danger" data-delete-product="${product.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="6">No products yet. Add a listing to start selling.</td></tr>'}</tbody></table></div></section><section id="orders" class="admin-panel"><div class="panel-head"><div><span class="eyebrow">SALES</span><h2>Recent orders</h2></div></div>${orders.length?`<div class="orders-list">${orders.slice(0,30).map(order=>`<article class="order-row"><div><b>${escapeHtml(order.order_number)}</b><span>${escapeHtml(order.customer_name)} · ${escapeHtml(order.customer_phone)}<br>${(order.order_items||[]).map(item=>`${escapeHtml(item.product_name)} × ${item.quantity}`).join(', ')}</span></div><strong>${formatNaira(order.total)}</strong><select class="status-select" data-order-status="${order.id}" aria-label="Update status for ${escapeHtml(order.order_number)}">${orderStatuses.map(status=>`<option ${order.status===status?'selected':''}>${status}</option>`).join('')}</select></article>`).join('')}</div>`:'<div class="empty-state compact"><div class="empty-bag">🛍</div><h3>No orders yet.</h3><p>Customer orders will show here.</p></div>'}</section></section></div>`;
+  const verificationSection=document.createElement('section');
+  verificationSection.id='verification';
+  verificationSection.className='admin-panel';
+  const pendingVerification=verificationRequests.filter(request=>request.status==='pending');
+  verificationSection.innerHTML='<div class="panel-head"><div><span class="eyebrow">TRUST & SAFETY</span><h2>Seller verification</h2></div><strong>'+pendingVerification.length+' pending</strong></div>'+
+    (verificationRequests.length
+      ?'<div class="orders-list">'+verificationRequests.slice(0,50).map(request=>'<article class="order-row verification-row"><div><b>'+escapeHtml(request.seller_profiles?.store_name||'Unnamed seller')+'</b><span>'+escapeHtml(request.legal_name)+' · '+escapeHtml(request.phone)+' · '+escapeHtml(request.location)+'<br>'+escapeHtml(request.id_type)+(request.id_last4?' · ending '+escapeHtml(request.id_last4):'')+' · '+escapeHtml(request.status)+'</span>'+(request.seller_note?'<small>Seller note: '+escapeHtml(request.seller_note)+'</small>':'')+(request.rejection_reason?'<small>Review note: '+escapeHtml(request.rejection_reason)+'</small>':'')+'</div><strong>'+ (request.status==='approved'?'✓':request.status==='rejected'?'✕':'Pending') +'</strong><div>'+ (request.status==='pending'?'<button class="table-btn" data-approve-verification="'+request.id+'">Approve</button><button class="table-btn danger" data-reject-verification="'+request.id+'">Reject</button>':'<button class="table-btn" data-review-verification="'+request.id+'">Review</button>') +'</div></article>').join('')+'</div>'
+      :'<div class="empty-state compact"><div class="empty-bag">🛡️</div><h3>No seller verification requests.</h3><p>Seller applications for identity review will appear here.</p></div>');
+  const productsSection=adminRoot.querySelector('#products');
+  if(productsSection)productsSection.parentNode.insertBefore(verificationSection,productsSection.nextSibling);
+
   const boostSection=document.createElement('section');
   boostSection.id='boosts';
   boostSection.className='admin-panel';
@@ -80,6 +96,9 @@ function renderDashboardContent(orders,boostOrders=[]){
   adminRoot.querySelectorAll('[data-edit-product]').forEach(button=>button.addEventListener('click',()=>editProduct(button.dataset.editProduct)));
   adminRoot.querySelectorAll('[data-duplicate-product]').forEach(button=>button.addEventListener('click',()=>duplicateProduct(button.dataset.duplicateProduct)));
   adminRoot.querySelectorAll('[data-delete-product]').forEach(button=>button.addEventListener('click',()=>deleteProduct(button.dataset.deleteProduct)));
+  adminRoot.querySelectorAll('[data-approve-verification]').forEach(button=>button.addEventListener('click',()=>reviewSellerVerification(button.dataset.approveVerification,'approved')));
+  adminRoot.querySelectorAll('[data-reject-verification]').forEach(button=>button.addEventListener('click',()=>reviewSellerVerification(button.dataset.rejectVerification,'rejected')));
+  adminRoot.querySelectorAll('[data-review-verification]').forEach(button=>button.addEventListener('click',()=>reviewSellerVerification(button.dataset.reviewVerification,'review')));
   adminRoot.querySelectorAll('[data-activate-boost]').forEach(button=>button.addEventListener('click',()=>activateBoost(button.dataset.activateBoost)));
   adminRoot.querySelectorAll('[data-cancel-boost]').forEach(button=>button.addEventListener('click',()=>cancelBoost(button.dataset.cancelBoost)));
   adminRoot.querySelectorAll('[data-order-status]').forEach(select=>select.addEventListener('change',()=>updateOrderStatus(select.dataset.orderStatus,select.value)));
@@ -214,6 +233,36 @@ async function deleteProduct(id){
     showToast('Product deleted.');
     await renderDashboard();
   }catch(error){showToast(error.message||'Could not delete the product.');}
+}
+
+async function reviewSellerVerification(id,decision){
+  const requests=window.__baggedVerificationRequests||[];
+  const request=requests.find(item=>item.id===id);
+  if(!request)return;
+  if(decision==='review'){
+    alert(
+      'Seller: '+(request.seller_profiles?.store_name||'Unnamed seller')+'\\n'+
+      'Legal name: '+request.legal_name+'\\n'+
+      'Phone: '+request.phone+'\\n'+
+      'Location: '+request.location+'\\n'+
+      'ID: '+request.id_type+(request.id_last4?' ending '+request.id_last4:'')+'\\n\\n'+
+      (request.seller_note||'No seller note.')
+    );
+    return;
+  }
+  let reason='';
+  if(decision==='rejected'){
+    reason=prompt('Why is this verification being rejected?','Please provide correct identity details and contact Bagged for review.');
+    if(reason===null)return;
+    reason=reason.trim();
+    if(!reason){showToast('Add a rejection reason.');return;}
+  }else if(!confirm('Approve identity verification for '+(request.seller_profiles?.store_name||'this seller')+'?'))return;
+  try{
+    const {error}=await supabaseClient.rpc('review_seller_verification',{p_request_id:id,p_decision:decision,p_rejection_reason:reason||null});
+    if(error)throw error;
+    showToast(decision==='approved'?'Seller verified. ✅':'Verification rejected.');
+    await renderDashboard();
+  }catch(error){showToast(error.message||'Could not review seller verification.');}
 }
 
 async function activateBoost(id){
