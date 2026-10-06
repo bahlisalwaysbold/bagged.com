@@ -97,6 +97,9 @@ as $$
 declare
   result jsonb;
 begin
+  -- Never trust a client-supplied user ID; personalize only for the current session.
+  p_user_id := (select auth.uid());
+
   with user_category_scores as (
     select
       p.category_id,
