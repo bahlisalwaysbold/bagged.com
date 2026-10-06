@@ -232,6 +232,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
 		await loadCatalog();
 		renderHomeCategories();
 		renderHomepageProducts();
+		await window.BaggedDiscovery?.loadHomepageDiscovery?.();
 		const featured=document.getElementById('featured-products');
 		if(featured){const products=getProducts();const selected=products.filter(product=>product.isFeatured);featured.innerHTML=(selected.length?selected:products).slice(0,4).map(productCard).join('')||'<p class="catalog-message">No products available yet.</p>';}
 	}catch(error){showCatalogError(error);}
