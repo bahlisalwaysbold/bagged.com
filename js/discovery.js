@@ -1,14 +1,10 @@
 (function(){
   const KEY='bagged_visitor_id';
   const getVisitorId=()=>{
-    try{
-      let id=localStorage.getItem(KEY);
-      if(!id){
-        id=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2))+Date.now().toString(36);
-        localStorage.setItem(KEY,id);
-      }
-      return id;
-    }catch{return 'guest-'+Date.now().toString(36);}
+    if(window.BaggedPrivacy?.hasConsent && !window.BaggedPrivacy.hasConsent())return null;
+    const cookieId=window.BaggedPrivacy?.getVisitorId?.();
+    if(cookieId)return cookieId;
+    try{return localStorage.getItem(KEY)||null;}catch{return null;}
   };
 
   const recentKey=(type,value)=>'bagged_event_'+type+'_'+String(value||'').slice(0,80);
@@ -23,7 +19,7 @@
   };
 
   async function trackMarketplaceEvent(type,{productId=null,categoryId=null,searchTerm=null,throttleValue=''}={}){
-    if(!window.supabaseClient || !shouldTrack(type,throttleValue||productId||searchTerm||'generic'))return;
+    if(!window.supabaseClient || (window.BaggedPrivacy?.hasConsent && !window.BaggedPrivacy.hasConsent()) || !getVisitorId() || !shouldTrack(type,throttleValue||productId||searchTerm||'generic'))return;
     try{
       await supabaseClient.rpc('record_marketplace_event',{
         p_visitor_id:getVisitorId(),
@@ -98,10 +94,15 @@
     renderDiscovery();
   }
 
+  async function refreshDiscovery(){
+    if(document.getElementById('boosted-products'))await loadHomepageDiscovery();
+  }
+
   window.BaggedDiscovery={
     getVisitorId,
     trackMarketplaceEvent,
     loadHomepageDiscovery,
-    getDiscovery
+    getDiscovery,
+    refreshDiscovery
   };
 })();
