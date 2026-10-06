@@ -57,7 +57,7 @@ function renderSellerPage(){
     '</section>'+
   '</div>'+
   '<section class="seller-panel seller-listings"><div class="panel-heading"><div><span class="eyebrow">YOUR LISTINGS</span><h2>What you’re selling.</h2></div><strong>'+sellerProducts.length+' listing'+(sellerProducts.length===1?'':'s')+'</strong></div>'+
-  (sellerProducts.length?sellerProducts.map(product=>'<article class="seller-listing"><div class="seller-listing-image">'+renderProductImage(product.image,'admin-product-image')+'</div><div class="seller-listing-main"><div class="mini-meta"><span>'+escapeHtml(product.category)+'</span><span>'+escapeHtml(product.condition)+'</span></div><h3>'+escapeHtml(product.name)+'</h3><strong>'+formatNaira(product.price)+'</strong><p>'+product.stock+' in stock · '+(product.isActive&&!product.isSold?'Live':'Not live')+(getActiveBoostForProduct(product.id)?' · 🚀 Boosted':'')+(getBoostOrderForProduct(product.id)?' · ⏳ Boost pending':'')+'</p></div><div class="seller-listing-actions"><button class="btn btn-secondary" type="button" data-edit-listing="'+product.id+'">Edit</button><button class="btn btn-dark" type="button" data-toggle-listing="'+product.id+'">'+(product.isActive&&!product.isSold?'Hide':'Show')+'</button><button class="btn btn-primary" type="button" data-boost-listing="'+product.id+'">🚀 Boost</button><button class="btn btn-primary" type="button" data-boost-listing="'+product.id+'">🚀 Boost</button><button class="btn btn-primary" type="button" data-boost-listing="'+product.id+'">🚀 Boost</button><button class="table-btn danger" type="button" data-delete-listing="'+product.id+'">Delete</button></div></article>').join(''):'<div class="seller-empty"><div>🛍️</div><h3>Your first listing goes here.</h3><p>Post something and it will appear in the Bagged marketplace.</p></div>')+
+  (sellerProducts.length?sellerProducts.map(product=>'<article class="seller-listing"><div class="seller-listing-image">'+renderProductImage(product.image,'admin-product-image')+'</div><div class="seller-listing-main"><div class="mini-meta"><span>'+escapeHtml(product.category)+'</span><span>'+escapeHtml(product.condition)+'</span></div><h3>'+escapeHtml(product.name)+'</h3><strong>'+formatNaira(product.price)+'</strong><p>'+product.stock+' in stock · '+(product.isActive&&!product.isSold?'Live':'Not live')+(getActiveBoostForProduct(product.id)?' · 🚀 Boosted':'')+(getBoostOrderForProduct(product.id)?' · ⏳ Boost pending':'')+'</p></div><div class="seller-listing-actions"><button class="btn btn-secondary" type="button" data-edit-listing="'+product.id+'">Edit</button><button class="btn btn-dark" type="button" data-toggle-listing="'+product.id+'">'+(product.isActive&&!product.isSold?'Hide':'Show')+'</button><button class="btn btn-primary" type="button" data-boost-listing="'+product.id+'">🚀 Boost</button><button class="table-btn danger" type="button" data-delete-listing="'+product.id+'">Delete</button></div></article>').join(''):'<div class="seller-empty"><div>🛍️</div><h3>Your first listing goes here.</h3><p>Post something and it will appear in the Bagged marketplace.</p></div>')+
   '</section>'+
   '<section class="seller-growth seller-boost-section"><span class="eyebrow">GET SEEN</span><h2>Put your listing in the spotlight.</h2><p class="boost-lead">Boosts buy premium visibility. Your request is recorded here, then Bagged confirms payment and activates the placement.</p><div class="boost-plan-grid">'+sellerBoostPlans.map(plan=>'<div class="boost-plan"><span class="boost-plan-badge">🚀 '+escapeHtml(plan.name)+'</span><strong>'+formatNaira(plan.price)+'</strong><b>'+plan.days+' days</b><span>'+escapeHtml(plan.description||'Premium Featured placement')+'</span></div>').join('')+'</div></section>';
 
@@ -94,19 +94,27 @@ async function loadSellerData(){
     sellerRoot.innerHTML='<section class="seller-login"><span class="eyebrow">SELL ON BAGGED</span><h2>Sign in before you sell.</h2><p>Create a free Bagged account, then come back here to post listings.</p><a class="btn btn-primary" href="account.html?mode=signup">Create seller account →</a><a class="btn btn-secondary" href="account.html">I already have an account</a></section>';
     return;
   }
-  const [profileResult,productsResult,categoryResult,boostPlanResult,boostOrderResult]=await Promise.all([
+  const [profileResult,productsResult,categoryResult,boostPlanResult,boostOrderResult,roleResult]=await Promise.all([
     supabaseClient.from('seller_profiles').select('*').eq('user_id',sellerUser.id).maybeSingle(),
     supabaseClient.from('products').select('id,category_id,categories(name),name,description,condition,price,sale_price,stock,images,image_urls,badge,is_featured,is_sale,is_sold,is_active,status,created_at,seller_id,boosted_until,boost_priority').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}),
     supabaseClient.from('categories').select('id,name,icon,description').order('name'),
     supabaseClient.from('boost_plans').select('id,name,days,price,priority,description').eq('is_active',true).order('price'),
-    supabaseClient.from('boost_orders').select('id,product_id,plan_id,amount,status,payment_reference,activated_at,created_at,boost_plans(name,days,priority,description)').eq('seller_id',sellerUser.id).order('created_at',{ascending:false})
+    supabaseClient.from('boost_orders').select('id,product_id,plan_id,amount,status,payment_reference,activated_at,created_at,boost_plans(name,days,priority,description)').eq('seller_id',sellerUser.id).order('created_at',{ascending:false}),
+    supabaseClient.from('marketplace_preferences').select('role').eq('user_id',sellerUser.id).maybeSingle()
   ]);
   if(profileResult.error)throw profileResult.error;
   if(productsResult.error)throw productsResult.error;
   if(categoryResult.error)throw categoryResult.error;
   if(boostPlanResult.error)throw boostPlanResult.error;
   if(boostOrderResult.error)throw boostOrderResult.error;
+  if(roleResult.error)throw roleResult.error;
   sellerProfile=profileResult.data||{store_name:'',phone:'',location:'',bio:'',verified:false,plan:'free'};
+  const marketplaceRole=roleResult.data?.role||null;
+  if(marketplaceRole==='buyer'){
+    sellerRoot.innerHTML='<section class="seller-login"><span class="eyebrow">SELLER CENTER</span><h2>Seller tools are off.</h2><p>Your Bagged account is currently in Buyer mode. Switch to Seller or Both in Account to open Seller Center.</p><a class="btn btn-primary" href="account.html">Open account settings →</a><a class="btn btn-secondary" href="shop.html">Keep shopping</a></section>';
+    return;
+  }
+  if(!marketplaceRole && sellerProfile.store_name){try{await setMarketplaceRole('seller');}catch{}}
   sellerBoostPlans=boostPlanResult.data||[];
   sellerBoostOrders=boostOrderResult.data||[];
   sellerProducts=(productsResult.data||[]).map(mapProduct);
