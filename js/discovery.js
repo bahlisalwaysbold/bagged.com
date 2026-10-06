@@ -58,21 +58,24 @@
   }
 
   function renderDiscovery(){
-    const boosted=orderedProducts(window.baggedDiscovery?.boosted_ids);
-    const trending=orderedProducts(window.baggedDiscovery?.trending_ids);
-    const personalized=orderedProducts(window.baggedDiscovery?.personalized_ids);
-    const fresh=orderedProducts(window.baggedDiscovery?.fresh_ids);
-
-    const sets=[
-      ['boosted-products',boosted],
-      ['trending-products',trending],
-      ['personalized-products',personalized],
-      ['fresh-products',fresh]
+    const seen=new Set();
+    const sections=[
+      ['boosted-products',orderedProducts(window.baggedDiscovery?.boosted_ids)],
+      ['trending-products',orderedProducts(window.baggedDiscovery?.trending_ids)],
+      ['personalized-products',orderedProducts(window.baggedDiscovery?.personalized_ids)],
+      ['fresh-products',orderedProducts(window.baggedDiscovery?.fresh_ids)]
     ];
 
-    sets.forEach(([id,items])=>{
+    sections.forEach(([id,items])=>{
       const root=document.getElementById(id);
-      if(root)root.innerHTML=items.slice(0,4).map(productCard).join('');
+      if(!root)return;
+      const unique=items.filter(item=>{
+        const key=String(item.id);
+        if(seen.has(key))return false;
+        seen.add(key);
+        return true;
+      }).slice(0,4);
+      root.innerHTML=unique.map(productCard).join('');
     });
 
     const terms=Array.isArray(window.baggedDiscovery?.trending_terms)?window.baggedDiscovery.trending_terms:[];
