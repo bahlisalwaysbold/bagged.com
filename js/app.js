@@ -302,6 +302,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
 	subscribeToCatalogChanges();
 	try{
 		await loadCatalog();
+    await completePendingBagAction();
 		renderHomeCategories();
 		renderHomepageProducts();
 		await window.BaggedDiscovery?.loadHomepageDiscovery?.();
