@@ -1,0 +1,11 @@
+{
+  "name":"Bagged — Find It. Bag It.",
+  "short_name":"Bagged",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#FFF8E7",
+  "theme_color":"#FFC400",
+  "icons":[
+    {"src":"assets/bagged-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
