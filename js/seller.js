@@ -128,6 +128,30 @@ async function pollSmileVerification(requestId){
   return false;
 }
 
+async function loadSmileIdentityScript(){
+  if(window.SmileIdentity)return;
+  const existing=document.querySelector('script[data-smile-id]');
+  if(existing){
+    await new Promise((resolve,reject)=>{
+      if(window.SmileIdentity)return resolve();
+      existing.addEventListener('load',resolve,{once:true});
+      existing.addEventListener('error',()=>reject(new Error('Smile ID could not load. Check your connection and try again.')),{once:true});
+    });
+    if(window.SmileIdentity)return;
+  }else{
+    await new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdn.smileidentity.com/inline/v2/js/script.min.js';
+      script.async=true;
+      script.dataset.smileId='true';
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error('Smile ID could not load. Check your connection and try again.'));
+      document.head.appendChild(script);
+    });
+  }
+  if(!window.SmileIdentity)throw new Error('Smile ID verification is not available right now.');
+}
+
 async function startSmileVerification(){
   const button=document.getElementById('start-smile-verification');
   if(button){button.disabled=true;button.textContent='Preparing secure verification…';}
@@ -145,7 +169,8 @@ async function startSmileVerification(){
       await pollSmileVerification(data.request_id);
       return;
     }
-    if(!data.token||!window.SmileIdentity)throw new Error('Smile ID verification is not available right now.');
+    if(!data.token)throw new Error('Smile ID verification session was not created.');
+    await loadSmileIdentityScript();
     window.SmileIdentity({
       token:data.token,
       product:'biometric_kyc',
